@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+frontend/dist/
+backend/bin/
+
+# Environment
+.env
+.env.*
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Neo4j
+neo4j_data/
