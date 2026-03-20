@@ -1,0 +1,11 @@
+dir: "{{.InterfaceDir}}/mock"
+structname: "{{.InterfaceName}}"
+pkgname: "mock"
+filename: /{{ .InterfaceName | snakecase }}.mock.go
+all: true
+recursive: true
+template: testify
+
+packages:
+  github.com/bonjuruu/aporia/internal/store:
+  github.com/bonjuruu/aporia/internal/kit/neo4j_kit:

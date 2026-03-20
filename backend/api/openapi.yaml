@@ -1,0 +1,759 @@
+openapi: 3.0.3
+info:
+  title: Aporia — Philosophy Graph Explorer API
+  description: REST API for the Philosophy Graph Explorer, a Neo4j-backed knowledge graph of philosophical thinkers, concepts, claims, and texts.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error or email already taken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/auth/login:
+    post:
+      summary: Login and receive a JWT
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                required:
+                  - token
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/auth/me:
+    get:
+      summary: Get the current authenticated user
+      tags: [Auth]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/graph:
+    get:
+      summary: Get the full graph for visualization
+      tags: [Graph]
+      responses:
+        "200":
+          description: Full graph data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphData"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/graph/subgraph/{textId}:
+    get:
+      summary: Get subgraph for reading mode (edges tagged to a specific text)
+      tags: [Graph]
+      parameters:
+        - name: textId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the text node
+      responses:
+        "200":
+          description: Subgraph data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphData"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/graph/path:
+    get:
+      summary: Find the shortest path between two nodes
+      tags: [Graph]
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Source node ID
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Target node ID
+      responses:
+        "200":
+          description: Path data (nodes and edges along the path)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphData"
+        "400":
+          description: Invalid request (missing from or to)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/nodes:
+    get:
+      summary: List all nodes
+      tags: [Nodes]
+      responses:
+        "200":
+          description: List of graph nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GraphNode"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a new node
+      tags: [Nodes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNodeRequest"
+      responses:
+        "201":
+          description: Created node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphNode"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/nodes/{id}:
+    get:
+      summary: Get a single node with all its connections
+      tags: [Nodes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Node ID
+      responses:
+        "200":
+          description: Node detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodeDetail"
+        "404":
+          description: Node not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      summary: Update a node
+      tags: [Nodes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Node ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNodeRequest"
+      responses:
+        "200":
+          description: Node updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a node and all its relationships
+      tags: [Nodes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Node ID
+      responses:
+        "200":
+          description: Node deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/search:
+    get:
+      summary: Full text search across all nodes
+      tags: [Search]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+      responses:
+        "200":
+          description: Matching nodes (max 20)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GraphNode"
+        "400":
+          description: Query is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/edges:
+    post:
+      summary: Create a new edge between two nodes
+      tags: [Edges]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEdgeRequest"
+      responses:
+        "201":
+          description: Created edge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Edge"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/edges/{id}:
+    put:
+      summary: Update an edge
+      tags: [Edges]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Edge ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEdgeRequest"
+      responses:
+        "200":
+          description: Edge updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete an edge
+      tags: [Edges]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Edge ID
+      responses:
+        "200":
+          description: Edge deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/annotations:
+    get:
+      summary: Get all annotations for the current user
+      tags: [Annotations]
+      responses:
+        "200":
+          description: List of user annotations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserAnnotation"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/annotations/{nodeId}:
+    put:
+      summary: Upsert annotation (stance and notes) for a node
+      tags: [Annotations]
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The node ID to annotate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnotationRequest"
+      responses:
+        "200":
+          description: Annotation updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    NodeType:
+      type: string
+      enum: [THINKER, CONCEPT, CLAIM, TEXT]
+
+    EdgeType:
+      type: string
+      enum:
+        - INFLUENCED
+        - COINED
+        - WROTE
+        - ARGUES
+        - APPEARS_IN
+        - REFUTES
+        - SUPPORTS
+        - QUALIFIES
+        - BUILDS_ON
+        - DERIVES_FROM
+        - RESPONDS_TO
+
+    Stance:
+      type: string
+      enum: [agree, disagree, uncertain, unread]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - created_at
+
+    GraphNode:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          $ref: "#/components/schemas/NodeType"
+        year:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - label
+        - type
+
+    Edge:
+      type: object
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+        type:
+          $ref: "#/components/schemas/EdgeType"
+        description:
+          type: string
+        source_text_id:
+          type: string
+      required:
+        - id
+        - source
+        - target
+        - type
+
+    ConnectionEntry:
+      type: object
+      properties:
+        edge:
+          $ref: "#/components/schemas/Edge"
+        node:
+          $ref: "#/components/schemas/GraphNode"
+      required:
+        - edge
+        - node
+
+    NodeDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          $ref: "#/components/schemas/NodeType"
+        properties:
+          type: object
+          additionalProperties: true
+        outgoing:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectionEntry"
+        incoming:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectionEntry"
+      required:
+        - id
+        - type
+        - properties
+
+    GraphData:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/Edge"
+      required:
+        - nodes
+        - edges
+
+    UserAnnotation:
+      type: object
+      properties:
+        user_id:
+          type: string
+        node_id:
+          type: string
+        stance:
+          $ref: "#/components/schemas/Stance"
+        notes:
+          type: string
+      required:
+        - user_id
+        - node_id
+        - stance
+        - notes
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required:
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    CreateNodeRequest:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/NodeType"
+        name:
+          type: string
+          description: Required for THINKER and CONCEPT types
+        title:
+          type: string
+          description: Required for TEXT type
+        content:
+          type: string
+          description: Required for CLAIM type
+        description:
+          type: string
+        notes:
+          type: string
+        born_year:
+          type: integer
+          nullable: true
+          description: THINKER only
+        died_year:
+          type: integer
+          nullable: true
+          description: THINKER only
+        year:
+          type: integer
+          nullable: true
+          description: CONCEPT and CLAIM only
+        published_year:
+          type: integer
+          nullable: true
+          description: TEXT only
+      required:
+        - type
+
+    UpdateNodeRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        description:
+          type: string
+        notes:
+          type: string
+        born_year:
+          type: integer
+          nullable: true
+        died_year:
+          type: integer
+          nullable: true
+        year:
+          type: integer
+          nullable: true
+        published_year:
+          type: integer
+          nullable: true
+
+    CreateEdgeRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Source node ID
+        target:
+          type: string
+          description: Target node ID
+        type:
+          $ref: "#/components/schemas/EdgeType"
+        description:
+          type: string
+        source_text_id:
+          type: string
+          description: Optional text node ID for reading mode tagging
+      required:
+        - source
+        - target
+        - type
+
+    UpdateEdgeRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        source_text_id:
+          type: string
+
+    AnnotationRequest:
+      type: object
+      properties:
+        stance:
+          $ref: "#/components/schemas/Stance"
+        notes:
+          type: string
+      required:
+        - stance
+        - notes
