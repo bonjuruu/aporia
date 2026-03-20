@@ -55,7 +55,11 @@ func RunMigrations(driver neo4j.DriverWithContext, migrationsPath string) error 
 
 func getCurrentVersion(ctx context.Context, driver neo4j.DriverWithContext) (*int, error) {
 	session := driver.NewSession(ctx, neo4j.SessionConfig{})
-	defer session.Close(ctx)
+	defer func() {
+		if closeErr := session.Close(ctx); closeErr != nil {
+			slog.Error("failed to close neo4j session", "error", closeErr)
+		}
+	}()
 
 	result, runErr := session.Run(ctx, `
 		MERGE (m:SchemaMigration {key: "version"})
@@ -83,7 +87,11 @@ func getCurrentVersion(ctx context.Context, driver neo4j.DriverWithContext) (*in
 
 func setCurrentVersion(ctx context.Context, driver neo4j.DriverWithContext, version int) error {
 	session := driver.NewSession(ctx, neo4j.SessionConfig{})
-	defer session.Close(ctx)
+	defer func() {
+		if closeErr := session.Close(ctx); closeErr != nil {
+			slog.Error("failed to close neo4j session", "error", closeErr)
+		}
+	}()
 
 	result, runErr := session.Run(ctx, `
 		MATCH (m:SchemaMigration {key: "version"})
@@ -104,9 +112,13 @@ func runMigrationFile(ctx context.Context, driver neo4j.DriverWithContext, fileP
 	}
 
 	session := driver.NewSession(ctx, neo4j.SessionConfig{})
-	defer session.Close(ctx)
+	defer func() {
+		if closeErr := session.Close(ctx); closeErr != nil {
+			slog.Error("failed to close neo4j session", "error", closeErr)
+		}
+	}()
 
-	for _, statement := range strings.Split(string(content), ";") {
+	for statement := range strings.SplitSeq(string(content), ";") {
 		statement = strings.TrimSpace(statement)
 		if statement == "" {
 			continue

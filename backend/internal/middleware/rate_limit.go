@@ -77,8 +77,6 @@ func (l *ipLimiter) cleanup() {
 
 // RateLimit returns a middleware that limits requests per IP.
 // rate is tokens added per second, burst is the max tokens (and initial capacity).
-// RateLimit returns a middleware that limits requests per IP.
-// rate is tokens added per second, burst is the max tokens (and initial capacity).
 // In test mode, returns a passthrough middleware.
 func RateLimit(rate float64, burst int) gin.HandlerFunc {
 	if gin.Mode() == gin.TestMode {

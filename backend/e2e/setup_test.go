@@ -49,11 +49,9 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 
-	testDriver.Close(context.Background())
+	_ = testDriver.Close(context.Background())
 	os.Exit(code)
 }
-
-
 
 func envOrDefault(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
@@ -66,7 +64,7 @@ func cleanDB(t *testing.T) {
 	t.Helper()
 	ctx := context.Background()
 	session := testDriver.NewSession(ctx, neo4j.SessionConfig{})
-	defer session.Close(ctx)
+	defer func() { _ = session.Close(ctx) }()
 
 	result, runErr := session.Run(ctx, "MATCH (n) DETACH DELETE n", nil)
 	if runErr != nil {
