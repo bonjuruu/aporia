@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { useGraph } from './hooks/useGraph'
@@ -12,6 +12,7 @@ import { AddEdgeModal } from './components/Curation/AddEdgeModal'
 import { ReadingView } from './components/ReadingMode/ReadingView'
 import { VaultPanel } from './components/Vault/VaultPanel'
 import { ProgressPanel } from './components/Reading/ProgressPanel'
+import { TimeSlider } from './components/Controls/TimeSlider'
 import { useProgress } from './hooks/useProgress'
 import { AuthPage } from './components/Auth/AuthPage'
 import { NODE_TYPES } from './types'
@@ -34,6 +35,26 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const [vaultTextId, setVaultTextId] = useState<string | undefined>(undefined)
   const [vaultTextLabel, setVaultTextLabel] = useState<string | undefined>(undefined)
   const [readingPanelOpen, setReadingPanelOpen] = useState(false)
+  const [timeSliderActive, setTimeSliderActive] = useState(false)
+  const [currentYear, setCurrentYear] = useState(0)
+  const [playing, setPlaying] = useState(false)
+
+  const { minYear, maxYear } = useMemo(() => {
+    const years = data.nodes.map(n => n.year).filter((y): y is number => y != null)
+    if (years.length === 0) return { minYear: 0, maxYear: 0 }
+    return { minYear: Math.min(...years), maxYear: Math.max(...years) }
+  }, [data])
+
+  useEffect(() => {
+    if (!playing) return
+    const interval = setInterval(() => {
+      setCurrentYear(y => {
+        if (y >= maxYear) { setPlaying(false); return y }
+        return y + 1
+      })
+    }, 100)
+    return () => clearInterval(interval)
+  }, [playing, maxYear])
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedId(node.id)
@@ -71,6 +92,16 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
 
   const handleOpenReadingPanel = useCallback(() => setReadingPanelOpen(true), [])
   const handleCloseReadingPanel = useCallback(() => setReadingPanelOpen(false), [])
+
+  const handleToggleTimeSlider = useCallback(() => {
+    setTimeSliderActive(prev => {
+      if (!prev) {
+        setCurrentYear(maxYear)
+        setPlaying(false)
+      }
+      return !prev
+    })
+  }, [maxYear])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -128,6 +159,9 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         </div>
         <div className="top-bar__group top-bar__group--right">
           <SearchBar onSelect={handleNodeClickById} />
+          <button className="btn btn--sm" onClick={handleToggleTimeSlider}>
+            {timeSliderActive ? 'TIMELINE \u00d7' : 'TIMELINE'}
+          </button>
           <button className="btn btn--sm" onClick={() => handleOpenVault()}>
             VAULT
           </button>
@@ -148,6 +182,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onContextMenu={handleContextMenu}
         // activeTypes is always a subset of ALL_TYPES, so size equality implies set equality
         filterTypes={activeTypes.size === ALL_TYPES.size ? undefined : activeTypes}
+        filterYear={timeSliderActive ? currentYear : undefined}
         progressMap={progressMap}
       />
 
@@ -205,6 +240,18 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         <ProgressPanel
           progressList={progressList}
           onClose={handleCloseReadingPanel}
+        />
+      )}
+
+      {/* Time slider */}
+      {timeSliderActive && minYear < maxYear && (
+        <TimeSlider
+          minYear={minYear}
+          maxYear={maxYear}
+          value={currentYear}
+          onChange={setCurrentYear}
+          playing={playing}
+          onPlayToggle={() => setPlaying(p => !p)}
         />
       )}
 

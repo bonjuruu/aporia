@@ -40,11 +40,12 @@ interface Props {
   selectedId: string | null
   onNodeClick: (node: GraphNode) => void
   filterTypes?: Set<NodeType>
+  filterYear?: number | null
   onContextMenu?: (e: React.MouseEvent) => void
   progressMap?: Map<string, number>
 }
 
-export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onContextMenu, progressMap }: Props) {
+export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filterYear, onContextMenu, progressMap }: Props) {
   const reactId = useId()
   const arrowId = `arrow-${reactId.replace(/:/g, '')}`
   const svgRef = useRef<SVGSVGElement>(null)
@@ -58,9 +59,10 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
   progressMapRef.current = progressMap ?? new Map()
 
   const filteredData = useMemo<GraphData>(() => {
-    const nodes = filterTypes && filterTypes.size > 0
-      ? data.nodes.filter(n => filterTypes.has(n.type)).map(n => ({ ...n }))
-      : data.nodes.map(n => ({ ...n }))
+    const nodes = data.nodes
+      .filter(n => !filterTypes || filterTypes.has(n.type))
+      .filter(n => filterYear == null || n.year == null || n.year <= filterYear)
+      .map(n => ({ ...n }))
     const nodeIds = new Set(nodes.map(n => n.id))
     // Clone edges and reset source/target to string IDs so forceLink
     // resolves them to the new node objects (not stale references)
@@ -68,7 +70,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
       .filter(e => nodeIds.has(edgeEndpointId(e.source)) && nodeIds.has(edgeEndpointId(e.target)))
       .map(e => ({ ...e, source: edgeEndpointId(e.source), target: edgeEndpointId(e.target) }))
     return { nodes, edges }
-  }, [data, filterTypes])
+  }, [data, filterTypes, filterYear])
   filteredDataRef.current = filteredData
 
   const adjacencyMap = useMemo(() => buildAdjacencyMap(filteredData.edges), [filteredData])
@@ -134,6 +136,10 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
     return () => observer.disconnect()
   }, [])
 
+  // Track previous node/edge ID sets to detect real data changes vs. reference-only changes
+  const prevNodeIdsRef = useRef<Set<string>>(new Set())
+  const prevEdgeIdsRef = useRef<Set<string>>(new Set())
+
   // Update simulation when data or filters change
   useEffect(() => {
     const svg = d3.select(svgRef.current!)
@@ -141,6 +147,59 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
     if (!sim) return
 
     const colors = colorsRef.current
+
+    // Preserve positions from previous simulation nodes onto new cloned objects
+    const prevPositions = new Map<string, { x: number; y: number; vx: number; vy: number }>()
+    for (const node of sim.nodes() as GraphNode[]) {
+      if (node.x != null && node.y != null) {
+        prevPositions.set(node.id, { x: node.x, y: node.y, vx: node.vx ?? 0, vy: node.vy ?? 0 })
+      }
+    }
+
+    // Build a quick lookup of neighbors for positioning new nodes
+    const neighborIndex = new Map<string, string[]>()
+    for (const edge of filteredData.edges) {
+      const s = edgeEndpointId(edge.source)
+      const t = edgeEndpointId(edge.target)
+      if (!neighborIndex.has(s)) neighborIndex.set(s, [])
+      if (!neighborIndex.has(t)) neighborIndex.set(t, [])
+      neighborIndex.get(s)!.push(t)
+      neighborIndex.get(t)!.push(s)
+    }
+
+    for (const node of filteredData.nodes) {
+      const prev = prevPositions.get(node.id)
+      if (prev) {
+        node.x = prev.x
+        node.y = prev.y
+        node.vx = prev.vx
+        node.vy = prev.vy
+      } else {
+        // New node: seed position near its neighbors so it doesn't fly in from center
+        const neighbors = neighborIndex.get(node.id) ?? []
+        let sumX = 0, sumY = 0, count = 0
+        for (const nId of neighbors) {
+          const nPos = prevPositions.get(nId)
+          if (nPos) { sumX += nPos.x; sumY += nPos.y; count++ }
+        }
+        if (count > 0) {
+          // Offset slightly with jitter so overlapping new nodes don't stack
+          node.x = sumX / count + (Math.random() - 0.5) * 30
+          node.y = sumY / count + (Math.random() - 0.5) * 30
+        }
+      }
+    }
+
+    // Detect whether the actual set of nodes/edges changed (not just object references)
+    const currNodeIds = new Set(filteredData.nodes.map(n => n.id))
+    const currEdgeIds = new Set(filteredData.edges.map(e => e.id))
+    const nodeSetChanged = currNodeIds.size !== prevNodeIdsRef.current.size
+      || [...currNodeIds].some(id => !prevNodeIdsRef.current.has(id))
+    const edgeSetChanged = currEdgeIds.size !== prevEdgeIdsRef.current.size
+      || [...currEdgeIds].some(id => !prevEdgeIdsRef.current.has(id))
+    const dataSetChanged = nodeSetChanged || edgeSetChanged
+    prevNodeIdsRef.current = currNodeIds
+    prevEdgeIdsRef.current = currEdgeIds
 
     // Reset hover opacity in case a hovered node was removed by a filter change
     svg.selectAll('g.node').style('opacity', 1)
@@ -268,7 +327,11 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
       nodes.attr('transform', (d: GraphNode) => `translate(${d.x ?? 0},${d.y ?? 0})`)
     })
 
-    sim.alpha(0.3).restart()
+    // Only reheat simulation when nodes/edges actually changed;
+    // year ticks that don't add/remove nodes skip the reheat to prevent jitter
+    if (dataSetChanged) {
+      sim.alpha(0.05).restart()
+    }
   }, [filteredData, arrowId])
 
   // Update selected ring without reheating simulation
