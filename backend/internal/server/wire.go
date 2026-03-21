@@ -14,6 +14,7 @@ type Handlers struct {
 	Edge  *api.EdgeHandler
 	Graph *api.GraphHandler
 	Auth  *api.AuthHandler
+	Quote *api.QuoteHandler
 }
 
 func WireHandlers(driver neo4j.DriverWithContext, jwtSecret []byte, cookieConfig middleware.CookieConfig) Handlers {
@@ -24,17 +25,20 @@ func WireHandlers(driver neo4j.DriverWithContext, jwtSecret []byte, cookieConfig
 	graphStore := store.NewGraphStore(neo4jKit)
 	userStore := store.NewUserStore(neo4jKit)
 	annotationStore := store.NewAnnotationStore(neo4jKit)
+	quoteStore := store.NewQuoteStore(neo4jKit)
 
 	nodeService := service.NewNodeService(nodeStore)
 	edgeService := service.NewEdgeService(edgeStore)
 	graphService := service.NewGraphService(graphStore)
 	authService := service.NewAuthService(userStore, jwtSecret)
 	annotationService := service.NewAnnotationService(annotationStore)
+	quoteService := service.NewQuoteService(quoteStore)
 
 	return Handlers{
 		Node:  api.NewNodeHandler(nodeService),
 		Edge:  api.NewEdgeHandler(edgeService),
 		Graph: api.NewGraphHandler(graphService),
 		Auth:  api.NewAuthHandler(authService, annotationService, cookieConfig),
+		Quote: api.NewQuoteHandler(quoteService),
 	}
 }

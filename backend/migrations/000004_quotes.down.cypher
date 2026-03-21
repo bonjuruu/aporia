@@ -1,0 +1,2 @@
+DROP CONSTRAINT quote_id IF EXISTS;
+DROP INDEX quote_status IF EXISTS;

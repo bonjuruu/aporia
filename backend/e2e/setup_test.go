@@ -132,6 +132,9 @@ func doRequest(t *testing.T, method, path string, body any, auth authCookies, ex
 	if auth.tokenCookie != nil {
 		request.AddCookie(auth.tokenCookie)
 	}
+	if auth.csrfCookie != nil {
+		request.AddCookie(auth.csrfCookie)
+	}
 	// Add CSRF header for state-changing methods
 	if method != http.MethodGet && method != http.MethodHead && auth.csrfCookie != nil {
 		request.Header.Set(middleware.CSRFHeaderName, auth.csrfCookie.Value)

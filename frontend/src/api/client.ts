@@ -1,4 +1,4 @@
-import type { EdgeType, GraphData, GraphNode, GraphEdge, NodeDetail, SearchResult, AuthUser, CreateNodeBody, UpdateNodeBody } from '../types'
+import type { EdgeType, GraphData, GraphNode, GraphEdge, NodeDetail, SearchResult, AuthUser, CreateNodeBody, UpdateNodeBody, Quote, CreateQuoteBody, UpdateQuoteBody } from '../types'
 
 const BASE = '/api'
 
@@ -181,4 +181,37 @@ export async function logout(): Promise<void> {
 
 export function fetchMe(signal?: AbortSignal): Promise<AuthUser> {
   return request(`${BASE}/auth/me`, signal ? { signal } : undefined)
+}
+
+// Quotes
+export function fetchQuotes(textId?: string, signal?: AbortSignal): Promise<Quote[]> {
+  const params = textId ? `?textId=${encodeURIComponent(textId)}` : ''
+  return request(`${BASE}/quotes${params}`, signal ? { signal } : undefined)
+}
+
+export function createQuote(body: CreateQuoteBody): Promise<Quote> {
+  return request(`${BASE}/quotes`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateQuote(id: string, body: UpdateQuoteBody): Promise<void> {
+  return requestVoid(`${BASE}/quotes/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteQuote(id: string): Promise<void> {
+  return requestVoid(`${BASE}/quotes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+}
+
+export function promoteQuote(quoteId: string, nodeBody: CreateNodeBody): Promise<GraphNode> {
+  return request(`${BASE}/quotes/${encodeURIComponent(quoteId)}/promote`, {
+    method: 'POST',
+    body: JSON.stringify(nodeBody),
+  })
 }

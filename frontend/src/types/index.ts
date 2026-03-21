@@ -171,6 +171,33 @@ export interface AnnotationRequest {
   notes: string
 }
 
+// Quote Vault types
+export type QuoteStatus = 'raw' | 'promoted'
+
+export interface Quote {
+  id: string
+  content: string
+  sourceTextId: string
+  sourceTextTitle: string
+  page: number | null
+  reaction: string
+  status: QuoteStatus
+  promotedNodeId: string
+  createdAt: string
+}
+
+export interface CreateQuoteBody {
+  content: string
+  sourceTextId: string
+  page?: number
+  reaction?: string
+}
+
+export interface UpdateQuoteBody {
+  reaction?: string
+  page?: number
+}
+
 // Request body types for create/update node
 export type CreateNodeBody =
   | { type: 'THINKER'; name: string; description?: string; tradition?: string; bornYear?: number; diedYear?: number }

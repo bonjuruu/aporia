@@ -17,6 +17,7 @@ interface Props {
   onAddEdge?: (sourceNode: { id: string; label: string; type: NodeType }) => void
   onNodeUpdated?: () => void
   onReadText?: (textId: string) => void
+  onOpenVault?: (textId: string, textLabel: string) => void
   escapeDisabled?: boolean
 }
 
@@ -139,12 +140,13 @@ function TypeDetailSwitch({ data, editing, form, onFieldChange }: {
   }
 }
 
-function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText }: {
+function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText, onOpenVault }: {
   data: NodeDetail
   onNodeClick: (nodeId: string) => void
   onAddEdge?: (sourceNode: { id: string; label: string; type: NodeType }) => void
   onNodeUpdated?: () => void
   onReadText?: (textId: string) => void
+  onOpenVault?: (textId: string, textLabel: string) => void
 }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<EditForm | null>(null)
@@ -241,6 +243,14 @@ function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText }
             {onAddEdge && (
               <button className="btn btn--sm" onClick={handleAddEdge}>ADD EDGE</button>
             )}
+            {data.type === 'TEXT' && onOpenVault && (
+              <button
+                className="btn btn--sm"
+                onClick={() => onOpenVault(data.id, nodeLabel)}
+              >
+                VAULT
+              </button>
+            )}
             {data.type === 'TEXT' && onReadText && (
               <button
                 className="btn btn--sm"
@@ -269,7 +279,7 @@ function PanelSkeleton() {
   )
 }
 
-export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpdated, onReadText, escapeDisabled }: Props) {
+export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpdated, onReadText, onOpenVault, escapeDisabled }: Props) {
   const { data, loading, error, refetch } = useNode(nodeId)
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<Element | null>(null)
@@ -314,6 +324,7 @@ export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpd
           onAddEdge={onAddEdge}
           onNodeUpdated={handleNodeUpdated}
           onReadText={onReadText}
+          onOpenVault={onOpenVault}
         />
       ) : null}
     </div>

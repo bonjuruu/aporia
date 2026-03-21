@@ -71,6 +71,12 @@ func NewRouter(h Handlers, jwtSecret []byte, allowOrigin string) *gin.Engine {
 
 		protected.GET("/annotations", h.Auth.GetAnnotations)
 		protected.PUT("/annotations/:nodeId", h.Auth.UpsertAnnotation)
+
+		protected.GET("/quotes", h.Quote.ListQuotes)
+		protected.POST("/quotes", h.Quote.CaptureQuote)
+		protected.PUT("/quotes/:id", h.Quote.UpdateQuote)
+		protected.DELETE("/quotes/:id", h.Quote.DeleteQuote)
+		protected.POST("/quotes/:id/promote", h.Quote.PromoteQuote)
 	}
 
 	return r

@@ -10,6 +10,7 @@ import { ContextMenu } from './components/Controls/ContextMenu'
 import { AddNodeModal } from './components/Curation/AddNodeModal'
 import { AddEdgeModal } from './components/Curation/AddEdgeModal'
 import { ReadingView } from './components/ReadingMode/ReadingView'
+import { VaultPanel } from './components/Vault/VaultPanel'
 import { AuthPage } from './components/Auth/AuthPage'
 import { NODE_TYPES } from './types'
 import type { GraphNode, NodeType } from './types'
@@ -26,6 +27,9 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const [addEdgeOpen, setAddEdgeOpen] = useState(false)
   const [edgeSourceNode, setEdgeSourceNode] = useState<{ id: string; label: string; type: NodeType } | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [vaultOpen, setVaultOpen] = useState(false)
+  const [vaultTextId, setVaultTextId] = useState<string | undefined>(undefined)
+  const [vaultTextLabel, setVaultTextLabel] = useState<string | undefined>(undefined)
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedId(node.id)
@@ -48,6 +52,18 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const handleReadText = useCallback((textId: string) => {
     navigate(`/reading/${textId}`)
   }, [navigate])
+
+  const handleOpenVault = useCallback((textId?: string, textLabel?: string) => {
+    setVaultTextId(textId)
+    setVaultTextLabel(textLabel)
+    setVaultOpen(true)
+  }, [])
+
+  const handleCloseVault = useCallback(() => {
+    setVaultOpen(false)
+    setVaultTextId(undefined)
+    setVaultTextLabel(undefined)
+  }, [])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -105,6 +121,9 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         </div>
         <div className="top-bar__group top-bar__group--right">
           <SearchBar onSelect={handleNodeClickById} />
+          <button className="btn btn--sm" onClick={() => handleOpenVault()}>
+            VAULT
+          </button>
           <button className="btn btn--sm" onClick={onLogout}>
             LOGOUT
           </button>
@@ -129,7 +148,8 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onAddEdge={handleAddEdge}
         onNodeUpdated={refetchGraph}
         onReadText={handleReadText}
-        escapeDisabled={addNodeOpen || addEdgeOpen}
+        onOpenVault={handleOpenVault}
+        escapeDisabled={addNodeOpen || addEdgeOpen || vaultOpen}
       />
 
       {/* Floating add button */}
@@ -158,6 +178,16 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onEdgeCreated={addEdge}
         sourceNode={edgeSourceNode}
       />
+
+      {/* Vault panel */}
+      {vaultOpen && (
+        <VaultPanel
+          textId={vaultTextId}
+          textLabel={vaultTextLabel}
+          onClose={handleCloseVault}
+          onNodeCreated={addNode}
+        />
+      )}
 
       {/* Bottom stats */}
       <div className="stats-bar">
