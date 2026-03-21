@@ -2,11 +2,18 @@ import { useEffect, useRef, useMemo } from 'react'
 import * as d3 from 'd3'
 import type { GraphData, GraphNode, GraphEdge } from '../../types'
 
-const NODE_COLORS: Record<string, string> = {
-  THINKER: '#c8b89a',
-  CONCEPT: '#c4973a',
-  CLAIM:   '#c45c3a',
-  TEXT:    '#4a8fa8',
+const NODE_COLOR_VARS: Record<string, string> = {
+  THINKER: '--color-node-thinker',
+  CONCEPT: '--color-node-concept',
+  CLAIM:   '--color-node-claim',
+  TEXT:    '--color-node-text',
+}
+
+function getNodeColors(): Record<string, string> {
+  const style = getComputedStyle(document.documentElement)
+  return Object.fromEntries(
+    Object.entries(NODE_COLOR_VARS).map(([type, varName]) => [type, style.getPropertyValue(varName).trim() || '#888'])
+  )
 }
 
 function getNeighborIds(nodeId: string, edges: GraphEdge[]): Set<string> {
@@ -29,22 +36,27 @@ interface Props {
   selectedId: string | null
   onNodeClick: (node: GraphNode) => void
   filterTypes?: Set<string>
+  onContextMenu?: (e: React.MouseEvent) => void
 }
 
-export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes }: Props) {
+export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onContextMenu }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(null)
+  const colorsRef = useRef<Record<string, string>>({})
   const onNodeClickRef = useRef(onNodeClick)
   onNodeClickRef.current = onNodeClick
 
   const filteredData = useMemo<GraphData>(() => {
-    if (!filterTypes || filterTypes.size === 0) return data
-    const visibleNodes = data.nodes.filter(n => filterTypes.has(n.type))
-    const visibleNodeIds = new Set(visibleNodes.map(n => n.id))
-    const visibleEdges = data.edges.filter(e =>
-      visibleNodeIds.has(edgeNodeId(e.source)) && visibleNodeIds.has(edgeNodeId(e.target))
-    )
-    return { nodes: visibleNodes, edges: visibleEdges }
+    const nodes = filterTypes && filterTypes.size > 0
+      ? data.nodes.filter(n => filterTypes.has(n.type)).map(n => ({ ...n }))
+      : data.nodes.map(n => ({ ...n }))
+    const nodeIds = new Set(nodes.map(n => n.id))
+    // Clone edges and reset source/target to string IDs so forceLink
+    // resolves them to the new node objects (not stale references)
+    const edges = data.edges
+      .filter(e => nodeIds.has(edgeNodeId(e.source)) && nodeIds.has(edgeNodeId(e.target)))
+      .map(e => ({ ...e, source: edgeNodeId(e.source), target: edgeNodeId(e.target) }))
+    return { nodes, edges }
   }, [data, filterTypes])
 
   // Initialize simulation once on mount
@@ -77,6 +89,8 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes }: Prop
       })
     svg.call(zoom)
 
+    colorsRef.current = getNodeColors()
+
     simulationRef.current = d3.forceSimulation<GraphNode>()
       .force('link', d3.forceLink<GraphNode, GraphEdge>().id(d => d.id).distance(120))
       .force('charge', d3.forceManyBody().strength(-400))
@@ -86,11 +100,33 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes }: Prop
     return () => { simulationRef.current?.stop() }
   }, [])
 
+  // Resize handling
+  useEffect(() => {
+    const svgEl = svgRef.current
+    if (!svgEl) return
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect
+      const sim = simulationRef.current
+      if (sim) {
+        sim.force('center', d3.forceCenter(width / 2, height / 2))
+        sim.alpha(0.1).restart()
+      }
+    })
+    observer.observe(svgEl)
+    return () => observer.disconnect()
+  }, [])
+
   // Update simulation when data or filters change
   useEffect(() => {
     const svg = d3.select(svgRef.current!)
     const sim = simulationRef.current
     if (!sim) return
+
+    const colors = colorsRef.current
+
+    // Reset hover opacity in case a hovered node was removed by a filter change
+    svg.selectAll('g.node').style('opacity', 1)
+    svg.selectAll('line').style('opacity', 1)
 
     // Edges — enter/update/exit
     const edgeSelection = svg.select('.edges-layer')
@@ -122,7 +158,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes }: Prop
     // Draw shape per node type (only for new nodes)
     nodesEnter.each(function(d) {
       const g = d3.select(this)
-      const color = NODE_COLORS[d.type] ?? '#888'
+      const color = colors[d.type] ?? '#888'
 
       switch (d.type) {
         case 'THINKER':
@@ -209,17 +245,19 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes }: Prop
   // Update selected ring without reheating simulation
   useEffect(() => {
     const svg = d3.select(svgRef.current!)
+    const colors = colorsRef.current
     svg.select('.nodes-layer')
       .selectAll<SVGGElement, GraphNode>('g.node')
       .select('circle, polygon, rect')
       .attr('stroke-width', (d: GraphNode) => d.id === selectedId ? 1.5 : 0.5)
-      .attr('stroke', (d: GraphNode) => d.id === selectedId ? '#e8e0d0' : (NODE_COLORS[d.type] ?? '#888'))
+      .attr('stroke', (d: GraphNode) => d.id === selectedId ? '#e8e0d0' : (colors[d.type] ?? '#888'))
   }, [selectedId])
 
   return (
     <svg
       ref={svgRef}
-      style={{ width: '100%', height: '100%', background: '#0e0c0a' }}
+      style={{ width: '100%', height: '100%', background: 'var(--color-bg-primary)' }}
+      onContextMenu={onContextMenu}
     />
   )
 }

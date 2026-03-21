@@ -174,6 +174,7 @@ func (s *nodeStore) CreateThinker(ctx context.Context, thinker models.Thinker) (
 		"notes":       thinker.Notes,
 		"born_year":   util.DerefOrNil(thinker.BornYear),
 		"died_year":   util.DerefOrNil(thinker.DiedYear),
+		"tradition":   thinker.Tradition,
 	}
 
 	runErr := s.neo4jKit.Run(ctx, `
@@ -183,7 +184,8 @@ func (s *nodeStore) CreateThinker(ctx context.Context, thinker models.Thinker) (
 			description: $description,
 			notes: $notes,
 			born_year: $born_year,
-			died_year: $died_year
+			died_year: $died_year,
+			tradition: $tradition
 		})
 		RETURN n
 	`, params)
@@ -314,6 +316,9 @@ func (s *nodeStore) UpdateThinker(ctx context.Context, id string, update models.
 	}
 	if update.DiedYear != nil {
 		props["died_year"] = *update.DiedYear
+	}
+	if update.Tradition != nil {
+		props["tradition"] = *update.Tradition
 	}
 
 	record, singleErr := s.neo4jKit.Single(ctx, `

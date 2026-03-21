@@ -50,6 +50,7 @@ func (s *NodeService) CreateNode(ctx context.Context, req request.CreateNodeRequ
 			Notes:       req.Notes,
 			BornYear:    req.BornYear,
 			DiedYear:    req.DiedYear,
+			Tradition:   req.Tradition,
 		}
 		node, createErr = s.nodeStore.CreateThinker(ctx, thinker)
 
@@ -116,6 +117,7 @@ func (s *NodeService) UpdateNode(ctx context.Context, id string, req request.Upd
 			Notes:       req.Notes,
 			BornYear:    req.BornYear,
 			DiedYear:    req.DiedYear,
+			Tradition:   req.Tradition,
 		}
 		updateErr = s.nodeStore.UpdateThinker(ctx, id, update)
 

@@ -29,6 +29,7 @@ type Thinker struct {
 	Notes       string `json:"notes"`
 	BornYear    *int   `json:"bornYear"`
 	DiedYear    *int   `json:"diedYear"`
+	Tradition   string `json:"tradition"`
 }
 
 func (t Thinker) String() string {
@@ -96,6 +97,7 @@ type ThinkerUpdate struct {
 	Notes       *string `json:"notes,omitempty"`
 	BornYear    *int    `json:"bornYear,omitempty"`
 	DiedYear    *int    `json:"diedYear,omitempty"`
+	Tradition   *string `json:"tradition,omitempty"`
 }
 
 type ConceptUpdate struct {

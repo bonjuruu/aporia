@@ -1,24 +1,30 @@
 import { useState, useCallback } from 'react'
+import { Routes, Route, useNavigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { useGraph } from './hooks/useGraph'
 import { GraphCanvas } from './components/Graph/GraphCanvas'
 import { DetailPanel } from './components/Panel/DetailPanel'
 import { FilterBar } from './components/Controls/FilterBar'
 import { SearchBar } from './components/Controls/SearchBar'
+import { ContextMenu } from './components/Controls/ContextMenu'
 import { AddNodeModal } from './components/Curation/AddNodeModal'
 import { AddEdgeModal } from './components/Curation/AddEdgeModal'
+import { ReadingView } from './components/ReadingMode/ReadingView'
 import { AuthPage } from './components/Auth/AuthPage'
-import type { GraphNode } from './types'
+import type { GraphNode, NodeType } from './types'
 
 const ALL_TYPES = new Set(['THINKER', 'CONCEPT', 'CLAIM', 'TEXT'])
 
 function GraphView({ onLogout }: { onLogout: () => void }) {
+  const navigate = useNavigate()
   const { data, loading, error, addNode, addEdge, refetchGraph } = useGraph()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(ALL_TYPES))
   const [addNodeOpen, setAddNodeOpen] = useState(false)
+  const [addNodeType, setAddNodeType] = useState<NodeType | null>(null)
   const [addEdgeOpen, setAddEdgeOpen] = useState(false)
   const [edgeSourceNode, setEdgeSourceNode] = useState<{ id: string; label: string; type: string } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedId(node.id)
@@ -29,14 +35,31 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   }, [])
 
   const handleClosePanel = useCallback(() => setSelectedId(null), [])
-  const handleOpenAddNode = useCallback(() => setAddNodeOpen(true), [])
-  const handleCloseAddNode = useCallback(() => setAddNodeOpen(false), [])
+  const handleOpenAddNode = useCallback(() => { setAddNodeType(null); setAddNodeOpen(true) }, [])
+  const handleCloseAddNode = useCallback(() => { setAddNodeOpen(false); setAddNodeType(null) }, [])
   const handleCloseAddEdge = useCallback(() => { setAddEdgeOpen(false); setEdgeSourceNode(null) }, [])
 
   const handleAddEdge = useCallback((sourceNode: { id: string; label: string; type: string }) => {
     setEdgeSourceNode(sourceNode)
     setAddEdgeOpen(true)
   }, [])
+
+  const handleReadText = useCallback((textId: string) => {
+    navigate(`/reading/${textId}`)
+  }, [navigate])
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  const handleContextMenuSelect = useCallback((type: NodeType) => {
+    setContextMenu(null)
+    setAddNodeType(type)
+    setAddNodeOpen(true)
+  }, [])
+
+  const handleCloseContextMenu = useCallback(() => setContextMenu(null), [])
 
   const handleToggleType = useCallback((type: string) => {
     setActiveTypes(prev => {
@@ -87,6 +110,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         data={data}
         selectedId={selectedId}
         onNodeClick={handleNodeClick}
+        onContextMenu={handleContextMenu}
         // activeTypes is always a subset of ALL_TYPES, so size equality implies set equality
         filterTypes={activeTypes.size === ALL_TYPES.size ? undefined : activeTypes}
       />
@@ -98,17 +122,29 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onNodeClick={handleNodeClickById}
         onAddEdge={handleAddEdge}
         onNodeUpdated={refetchGraph}
+        onReadText={handleReadText}
         escapeDisabled={addNodeOpen || addEdgeOpen}
       />
 
       {/* Floating add button */}
       <button className="fab" onClick={handleOpenAddNode} aria-label="Add node">+</button>
 
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onSelect={handleContextMenuSelect}
+          onClose={handleCloseContextMenu}
+        />
+      )}
+
       {/* Modals */}
       <AddNodeModal
         open={addNodeOpen}
         onClose={handleCloseAddNode}
         onNodeCreated={addNode}
+        initialType={addNodeType}
       />
       <AddEdgeModal
         open={addEdgeOpen}
@@ -154,5 +190,10 @@ export default function App() {
     return <AuthPage onLogin={login} onRegister={register} />
   }
 
-  return <GraphView onLogout={logout} />
+  return (
+    <Routes>
+      <Route path="/" element={<GraphView onLogout={logout} />} />
+      <Route path="/reading/:id" element={<ReadingView onLogout={logout} />} />
+    </Routes>
+  )
 }

@@ -1,4 +1,4 @@
-import { useState, useId } from 'react'
+import { useState, useEffect, useId } from 'react'
 import { createNode } from '../../api/client'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { nodeDetailLabel } from '../../types'
@@ -8,6 +8,7 @@ interface Props {
   open: boolean
   onClose: () => void
   onNodeCreated: (node: GraphNode) => void
+  initialType?: NodeType | null
 }
 
 const NODE_TYPES: NodeType[] = ['THINKER', 'CONCEPT', 'CLAIM', 'TEXT']
@@ -59,12 +60,17 @@ function buildRequestBody(type: NodeType, form: FormState): Record<string, unkno
   return body
 }
 
-export function AddNodeModal({ open, onClose, onNodeCreated }: Props) {
-  const [selectedType, setSelectedType] = useState<NodeType | null>(null)
+export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Props) {
+  const [selectedType, setSelectedType] = useState<NodeType | null>(initialType ?? null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const trapRef = useFocusTrap(open)
+
+  // Sync initialType when modal opens
+  useEffect(() => {
+    if (open) setSelectedType(initialType ?? null)
+  }, [open, initialType])
   const fieldIdPrefix = useId()
 
   function fieldId(name: string) {

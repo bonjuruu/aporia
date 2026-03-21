@@ -28,7 +28,7 @@ export function FilterBar({ activeTypes, onToggle }: Props) {
               textTransform: 'uppercase',
               padding: '4px 10px',
               border: `1px solid ${active ? color : 'var(--color-border)'}`,
-              background: active ? `${color}15` : 'transparent',
+              background: active ? `color-mix(in srgb, ${color} 8%, transparent)` : 'transparent',
               color: active ? color : 'var(--color-text-muted)',
               cursor: 'pointer',
               transition: 'all 150ms ease-out',

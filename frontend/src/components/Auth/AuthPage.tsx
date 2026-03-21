@@ -14,6 +14,7 @@ export function AuthPage({ onLogin, onRegister }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
     setError(null)
     setLoading(true)
     try {
@@ -30,42 +31,14 @@ export function AuthPage({ onLogin, onRegister }: Props) {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      background: 'var(--color-bg-primary)',
-    }}>
-      <div style={{
-        width: 360,
-        padding: 32,
-        border: '1px solid var(--color-border-strong)',
-        background: 'var(--color-bg-panel)',
-      }}>
-        <div style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 11,
-          letterSpacing: '0.15em',
-          color: 'var(--color-text-muted)',
-          marginBottom: 4,
-          textTransform: 'uppercase',
-        }}>
-          System Access
-        </div>
-        <h1 style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 28,
-          fontWeight: 400,
-          color: 'var(--color-text-primary)',
-          marginBottom: 32,
-        }}>
-          Aporia
-        </h1>
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-card__subtitle">System Access</div>
+        <h1 className="auth-card__title">Aporia</h1>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 16 }}>
-            <label className="meta-label" style={{ display: 'block', marginBottom: 6 }}>
+          <div className="form-field--md">
+            <label className="meta-label">
               Identifier
             </label>
             <input
@@ -78,8 +51,8 @@ export function AuthPage({ onLogin, onRegister }: Props) {
             />
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <label className="meta-label" style={{ display: 'block', marginBottom: 6 }}>
+          <div className="form-field--lg">
+            <label className="meta-label">
               Access Key
             </label>
             <input
@@ -94,39 +67,25 @@ export function AuthPage({ onLogin, onRegister }: Props) {
           </div>
 
           {error && (
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              color: 'var(--color-node-claim)',
-              marginBottom: 16,
-            }}>
+            <div className="auth-card__error">
               {error}
             </div>
           )}
 
           <button
-            className="btn"
+            className="btn btn--full"
             type="submit"
             disabled={loading}
-            style={{ width: '100%', padding: '10px', marginBottom: 16 }}
+            style={{ marginBottom: 16 }}
           >
             {loading ? 'PROCESSING...' : mode === 'login' ? 'AUTHENTICATE' : 'REGISTER'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center' }}>
+        <div className="text-center">
           <button
+            className="link-btn"
             onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null) }}
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              color: 'var(--color-text-muted)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-              textUnderlineOffset: 3,
-            }}
           >
             {mode === 'login' ? 'REQUEST NEW ACCESS' : 'EXISTING ACCESS'}
           </button>

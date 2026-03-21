@@ -15,6 +15,7 @@ interface Props {
   onNodeClick: (nodeId: string) => void
   onAddEdge?: (sourceNode: { id: string; label: string; type: string }) => void
   onNodeUpdated?: () => void
+  onReadText?: (textId: string) => void
   escapeDisabled?: boolean
 }
 
@@ -103,11 +104,12 @@ function TypeDetailSwitch({ data, editing, form, onFieldChange }: {
   }
 }
 
-function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated }: {
+function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText }: {
   data: NodeDetail
   onNodeClick: (nodeId: string) => void
   onAddEdge?: (sourceNode: { id: string; label: string; type: string }) => void
   onNodeUpdated?: () => void
+  onReadText?: (textId: string) => void
 }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<Record<string, string>>({})
@@ -205,6 +207,15 @@ function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated }: {
             {onAddEdge && (
               <button className="btn" onClick={handleAddEdge} style={{ fontSize: 11 }}>ADD EDGE</button>
             )}
+            {data.type === 'TEXT' && onReadText && (
+              <button
+                className="btn"
+                onClick={() => onReadText(data.id)}
+                style={{ fontSize: 11, color: 'var(--color-node-text)', marginLeft: 'auto' }}
+              >
+                READ
+              </button>
+            )}
           </div>
           <ConnectionList label="Outgoing" connections={data.outgoing} onNodeClick={onNodeClick} />
           <ConnectionList label="Incoming" connections={data.incoming} onNodeClick={onNodeClick} />
@@ -238,7 +249,7 @@ function PanelSkeleton() {
   )
 }
 
-export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpdated, escapeDisabled }: Props) {
+export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpdated, onReadText, escapeDisabled }: Props) {
   const { data, loading, error, refetch } = useNode(nodeId)
 
   useEffect(() => {
@@ -282,6 +293,7 @@ export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpd
           onNodeClick={onNodeClick}
           onAddEdge={onAddEdge}
           onNodeUpdated={handleNodeUpdated}
+          onReadText={onReadText}
         />
       ) : null}
     </div>

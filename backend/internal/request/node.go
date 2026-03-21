@@ -11,6 +11,7 @@ type CreateNodeRequest struct {
 	Notes         string          `json:"notes,omitempty"`
 	BornYear      *int            `json:"bornYear,omitempty"`
 	DiedYear      *int            `json:"diedYear,omitempty"`
+	Tradition     string          `json:"tradition,omitempty"`
 	Year          *int            `json:"year,omitempty"`
 	PublishedYear *int            `json:"publishedYear,omitempty"`
 }
@@ -24,6 +25,7 @@ type UpdateNodeRequest struct {
 	Notes         *string         `json:"notes,omitempty"`
 	BornYear      *int            `json:"bornYear,omitempty"`
 	DiedYear      *int            `json:"diedYear,omitempty"`
+	Tradition     *string         `json:"tradition,omitempty"`
 	Year          *int            `json:"year,omitempty"`
 	PublishedYear *int            `json:"publishedYear,omitempty"`
 }
@@ -31,5 +33,5 @@ type UpdateNodeRequest struct {
 func (r UpdateNodeRequest) HasUpdates() bool {
 	return r.Name != nil || r.Title != nil || r.Content != nil ||
 		r.Description != nil || r.Notes != nil || r.BornYear != nil ||
-		r.DiedYear != nil || r.Year != nil || r.PublishedYear != nil
+		r.DiedYear != nil || r.Tradition != nil || r.Year != nil || r.PublishedYear != nil
 }
