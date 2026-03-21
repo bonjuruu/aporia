@@ -65,6 +65,9 @@ func (s *QuoteService) Update(ctx context.Context, userID string, id string, req
 	if req.Reaction == nil && req.Page == nil {
 		return apperror.NewBadRequest("no fields to update")
 	}
+	if validateErr := validate.Struct(req); validateErr != nil {
+		return apperror.NewBadRequest(validateErr.Error())
+	}
 
 	updateErr := s.quoteStore.Update(ctx, userID, id, req.Reaction, req.Page)
 	if updateErr != nil {

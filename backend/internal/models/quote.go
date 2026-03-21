@@ -1,5 +1,7 @@
 package models
 
+import "fmt"
+
 type QuoteStatus string
 
 const (
@@ -17,4 +19,12 @@ type Quote struct {
 	Status         QuoteStatus `json:"status"`
 	PromotedNodeID string      `json:"promotedNodeId"`
 	CreatedAt      string      `json:"createdAt"`
+}
+
+func (q Quote) String() string {
+	page := "nil"
+	if q.Page != nil {
+		page = fmt.Sprintf("%d", *q.Page)
+	}
+	return fmt.Sprintf("Quote{id:%s, sourceTextId:%s, status:%s, page:%s}", q.ID, q.SourceTextID, q.Status, page)
 }

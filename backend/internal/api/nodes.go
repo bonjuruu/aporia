@@ -35,10 +35,6 @@ func (h *NodeHandler) GetNode(c *gin.Context) {
 		response.HandleError(c, "failed to get node", getNodeErr)
 		return
 	}
-	if node == nil {
-		response.RespondError(c, http.StatusNotFound, "node not found")
-		return
-	}
 
 	c.JSON(http.StatusOK, node)
 }

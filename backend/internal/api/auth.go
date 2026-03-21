@@ -75,10 +75,6 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 		response.HandleError(c, "failed to get user", getUserErr)
 		return
 	}
-	if user == nil {
-		response.RespondError(c, http.StatusNotFound, "user not found")
-		return
-	}
 
 	c.JSON(http.StatusOK, user)
 }

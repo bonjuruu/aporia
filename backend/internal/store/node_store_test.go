@@ -94,7 +94,7 @@ func TestNodeStore_GetByID(t *testing.T) {
 		neo4jKit.AssertExpectations(t)
 	})
 
-	t.Run("Should return nil when no record is found", func(t *testing.T) {
+	t.Run("Should return not found error when no record is found", func(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
@@ -105,7 +105,9 @@ func TestNodeStore_GetByID(t *testing.T) {
 		detail, getByIDErr := nodeStore.GetByID(ctx, "nonexistent-id")
 
 		assert.Nil(t, detail)
-		assert.NoError(t, getByIDErr)
+		appErr, ok := errors.AsType[*apperror.AppError](getByIDErr)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusNotFound, appErr.Status)
 		neo4jKit.AssertExpectations(t)
 	})
 }

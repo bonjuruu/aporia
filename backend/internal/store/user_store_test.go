@@ -3,9 +3,11 @@ package store
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/bonjuruu/aporia/internal/apperror"
 	neo4jKitMock "github.com/bonjuruu/aporia/internal/kit/neo4j_kit/mock"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/stretchr/testify/assert"
@@ -138,7 +140,7 @@ func TestUserStore_GetByID(t *testing.T) {
 		neo4jKit.AssertExpectations(t)
 	})
 
-	t.Run("Should return nil when user is not found by id", func(t *testing.T) {
+	t.Run("Should return not found error when user is not found by id", func(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		userStore := NewUserStore(neo4jKit)
 
@@ -149,7 +151,9 @@ func TestUserStore_GetByID(t *testing.T) {
 		user, getByIDErr := userStore.GetByID(ctx, "nonexistent-id")
 
 		assert.Nil(t, user)
-		assert.NoError(t, getByIDErr)
+		appErr, ok := errors.AsType[*apperror.AppError](getByIDErr)
+		assert.True(t, ok)
+		assert.Equal(t, http.StatusNotFound, appErr.Status)
 		neo4jKit.AssertExpectations(t)
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/bonjuruu/aporia/internal/apperror"
 	"github.com/bonjuruu/aporia/internal/kit/neo4j_kit"
 	"github.com/bonjuruu/aporia/internal/models"
 	"github.com/bonjuruu/aporia/internal/util"
@@ -83,7 +84,7 @@ func (s *userStore) GetByID(ctx context.Context, id string) (*models.User, error
 	}
 
 	if record == nil {
-		return nil, nil
+		return nil, apperror.NewNotFound("user not found")
 	}
 
 	user := &models.User{

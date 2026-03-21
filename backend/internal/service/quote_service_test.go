@@ -49,6 +49,42 @@ func TestQuoteService_Capture(t *testing.T) {
 		quoteStore.AssertNotCalled(t, "Create")
 	})
 
+	t.Run("Should return error when page is zero", func(t *testing.T) {
+		quoteStore := storeMock.NewQuoteStore(t)
+		quoteService := NewQuoteService(quoteStore)
+
+		page := 0
+		createQuoteRequest := request.CreateQuoteRequest{
+			Content:      "The unexamined life is not worth living.",
+			SourceTextID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			Page:         &page,
+		}
+
+		result, captureErr := quoteService.Capture(ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", createQuoteRequest)
+
+		assert.Nil(t, result)
+		assert.Error(t, captureErr)
+		quoteStore.AssertNotCalled(t, "Create")
+	})
+
+	t.Run("Should return error when page is negative", func(t *testing.T) {
+		quoteStore := storeMock.NewQuoteStore(t)
+		quoteService := NewQuoteService(quoteStore)
+
+		page := -3
+		createQuoteRequest := request.CreateQuoteRequest{
+			Content:      "The unexamined life is not worth living.",
+			SourceTextID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			Page:         &page,
+		}
+
+		result, captureErr := quoteService.Capture(ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", createQuoteRequest)
+
+		assert.Nil(t, result)
+		assert.Error(t, captureErr)
+		quoteStore.AssertNotCalled(t, "Create")
+	})
+
 	t.Run("Should return error when source text id is missing", func(t *testing.T) {
 		quoteStore := storeMock.NewQuoteStore(t)
 		quoteService := NewQuoteService(quoteStore)
@@ -154,6 +190,36 @@ func TestQuoteService_Update(t *testing.T) {
 		updateErr := quoteService.Update(ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", "", updateQuoteRequest)
 
 		assert.EqualError(t, updateErr, "quote id is required")
+		quoteStore.AssertNotCalled(t, "Update")
+	})
+
+	t.Run("Should return error when update page is zero", func(t *testing.T) {
+		quoteStore := storeMock.NewQuoteStore(t)
+		quoteService := NewQuoteService(quoteStore)
+
+		page := 0
+		updateQuoteRequest := request.UpdateQuoteRequest{
+			Page: &page,
+		}
+
+		updateErr := quoteService.Update(ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", updateQuoteRequest)
+
+		assert.Error(t, updateErr)
+		quoteStore.AssertNotCalled(t, "Update")
+	})
+
+	t.Run("Should return error when update page is negative", func(t *testing.T) {
+		quoteStore := storeMock.NewQuoteStore(t)
+		quoteService := NewQuoteService(quoteStore)
+
+		page := -5
+		updateQuoteRequest := request.UpdateQuoteRequest{
+			Page: &page,
+		}
+
+		updateErr := quoteService.Update(ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", updateQuoteRequest)
+
+		assert.Error(t, updateErr)
 		quoteStore.AssertNotCalled(t, "Update")
 	})
 

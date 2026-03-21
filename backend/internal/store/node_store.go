@@ -82,7 +82,7 @@ func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetai
 	}
 
 	if record == nil {
-		return nil, nil
+		return nil, apperror.NewNotFound("node not found")
 	}
 
 	nodeVal, _ := record.Get("n")
