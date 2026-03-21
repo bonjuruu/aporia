@@ -66,7 +66,7 @@ func TestEdgeService_CreateEdge(t *testing.T) {
 			Type:   models.EdgeTypeInfluenced,
 		}
 
-		edgeStore.On("Create", ctx, mock.AnythingOfType("string"), models.EdgeTypeInfluenced, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "b2c3d4e5-f6a7-8901-bcde-f12345678901", "", "").Return(nil, errors.New("node not found")).Once()
+		edgeStore.On("Create", ctx, mock.MatchedBy(func(id string) bool { return id != "" }), models.EdgeTypeInfluenced, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "b2c3d4e5-f6a7-8901-bcde-f12345678901", "", "").Return(nil, errors.New("node not found")).Once()
 
 		result, createEdgeErr := edgeService.CreateEdge(ctx, createEdgeRequest)
 

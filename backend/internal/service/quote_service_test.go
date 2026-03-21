@@ -73,7 +73,16 @@ func TestQuoteService_Capture(t *testing.T) {
 			SourceTextID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 		}
 
-		quoteStore.On("Create", ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", mock.AnythingOfType("models.Quote")).Return(nil, errors.New("user or source text not found")).Once()
+		quoteStore.On("Create", ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", mock.MatchedBy(func(q models.Quote) bool { return q.Content != "" })).
+			Run(func(args mock.Arguments) {
+				quote := args.Get(2).(models.Quote)
+				assert.NotEmpty(t, quote.ID)
+				assert.Equal(t, "The unexamined life is not worth living.", quote.Content)
+				assert.Equal(t, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", quote.SourceTextID)
+				assert.Nil(t, quote.Page)
+				assert.Empty(t, quote.Reaction)
+				assert.Equal(t, models.QuoteStatusRaw, quote.Status)
+			}).Return(nil, errors.New("user or source text not found")).Once()
 
 		result, captureErr := quoteService.Capture(ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", createQuoteRequest)
 
@@ -278,7 +287,14 @@ func TestQuoteService_Promote(t *testing.T) {
 			Content: "The unexamined life is not worth living.",
 		}
 
-		quoteStore.On("Promote", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.AnythingOfType("map[string]interface {}")).Return(nil, errors.New("quote not found")).Once()
+		quoteStore.On("Promote", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.MatchedBy(func(p map[string]any) bool { return true })).
+			Run(func(args mock.Arguments) {
+				props := args.Get(3).(map[string]any)
+				assert.NotEmpty(t, props["id"])
+				assert.Equal(t, "The unexamined life is not worth living.", props["content"])
+				assert.Equal(t, "", props["notes"])
+				assert.Nil(t, props["year"])
+			}).Return(nil, errors.New("quote not found")).Once()
 
 		result, promoteErr := quoteService.Promote(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "b2c3d4e5-f6a7-8901-bcde-f12345678901", nodeRequest)
 
@@ -302,7 +318,14 @@ func TestQuoteService_Promote(t *testing.T) {
 			Type:  models.NodeTypeClaim,
 		}
 
-		quoteStore.On("Promote", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.AnythingOfType("map[string]interface {}")).Return(promotedNode, nil).Once()
+		quoteStore.On("Promote", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.MatchedBy(func(p map[string]any) bool { return true })).
+			Run(func(args mock.Arguments) {
+				props := args.Get(3).(map[string]any)
+				assert.NotEmpty(t, props["id"])
+				assert.Equal(t, "The unexamined life is not worth living.", props["content"])
+				assert.Equal(t, "", props["notes"])
+				assert.Nil(t, props["year"])
+			}).Return(promotedNode, nil).Once()
 
 		result, promoteErr := quoteService.Promote(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "b2c3d4e5-f6a7-8901-bcde-f12345678901", nodeRequest)
 

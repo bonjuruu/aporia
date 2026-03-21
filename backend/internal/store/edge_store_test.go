@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/bonjuruu/aporia/internal/apperror"
@@ -34,7 +35,15 @@ func TestEdgeStore_Create(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		edgeStore := NewEdgeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, errors.New("node not found")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "INFLUENCED")
+		}), map[string]any{
+			"id":             "edge-id",
+			"source_id":      "source-id",
+			"target_id":      "target-id",
+			"description":    "Plato influenced Aristotle",
+			"source_text_id": "",
+		}).Return(nil, errors.New("node not found")).Once()
 
 		edge, createErr := edgeStore.Create(ctx, "edge-id", models.EdgeTypeInfluenced, "source-id", "target-id", "Plato influenced Aristotle", "")
 
@@ -47,7 +56,15 @@ func TestEdgeStore_Create(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		edgeStore := NewEdgeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "INFLUENCED")
+		}), map[string]any{
+			"id":             "edge-id",
+			"source_id":      "source-id",
+			"target_id":      "nonexistent-id",
+			"description":    "description",
+			"source_text_id": "",
+		}).Return(nil, nil).Once()
 
 		edge, createErr := edgeStore.Create(ctx, "edge-id", models.EdgeTypeInfluenced, "source-id", "nonexistent-id", "description", "")
 
@@ -66,7 +83,15 @@ func TestEdgeStore_Create(t *testing.T) {
 			Keys:   []string{"r"},
 			Values: []any{"edge-id"},
 		}
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(record, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "INFLUENCED")
+		}), map[string]any{
+			"id":             "edge-id",
+			"source_id":      "source-id",
+			"target_id":      "target-id",
+			"description":    "Plato influenced Aristotle",
+			"source_text_id": "text-id",
+		}).Return(record, nil).Once()
 
 		edge, createErr := edgeStore.Create(ctx, "edge-id", models.EdgeTypeInfluenced, "source-id", "target-id", "Plato influenced Aristotle", "text-id")
 
@@ -93,7 +118,12 @@ func TestEdgeStore_Update(t *testing.T) {
 		description := "updated description"
 		edgeUpdate := models.EdgeUpdate{Description: &description}
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "SET r += $props")
+		}), map[string]any{
+			"id":    "edge-id",
+			"props": map[string]any{"description": "updated description"},
+		}).Return(nil, errors.New("connection refused")).Once()
 
 		updateErr := edgeStore.Update(ctx, "edge-id", edgeUpdate)
 
@@ -108,7 +138,12 @@ func TestEdgeStore_Update(t *testing.T) {
 		description := "updated description"
 		edgeUpdate := models.EdgeUpdate{Description: &description}
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "SET r += $props")
+		}), map[string]any{
+			"id":    "edge-id",
+			"props": map[string]any{"description": "updated description"},
+		}).Return(nil, nil).Once()
 
 		updateErr := edgeStore.Update(ctx, "edge-id", edgeUpdate)
 
@@ -128,7 +163,9 @@ func TestEdgeStore_Delete(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		edgeStore := NewEdgeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "edge-id"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "DELETE r")
+		}), map[string]any{"id": "edge-id"}).Return(nil, errors.New("connection refused")).Once()
 
 		deleteErr := edgeStore.Delete(ctx, "edge-id")
 
@@ -140,7 +177,9 @@ func TestEdgeStore_Delete(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		edgeStore := NewEdgeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "nonexistent-id"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "DELETE r")
+		}), map[string]any{"id": "nonexistent-id"}).Return(nil, nil).Once()
 
 		deleteErr := edgeStore.Delete(ctx, "nonexistent-id")
 

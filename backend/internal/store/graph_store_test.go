@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	neo4jKitMock "github.com/bonjuruu/aporia/internal/kit/neo4j_kit/mock"
@@ -19,7 +20,9 @@ func TestGraphStore_GetFullGraph(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		graphStore := NewGraphStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "n:Thinker OR n:Concept OR n:Claim OR n:Text")
+		}), (map[string]any)(nil)).Return(nil, errors.New("connection refused")).Once()
 
 		graphData, getFullGraphErr := graphStore.GetFullGraph(ctx)
 
@@ -32,7 +35,9 @@ func TestGraphStore_GetFullGraph(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		graphStore := NewGraphStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "n:Thinker OR n:Concept OR n:Claim OR n:Text")
+		}), (map[string]any)(nil)).Return(nil, nil).Once()
 
 		graphData, getFullGraphErr := graphStore.GetFullGraph(ctx)
 
@@ -53,7 +58,9 @@ func TestGraphStore_GetSubgraph(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		graphStore := NewGraphStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"text_id": "text-id"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "$text_id")
+		}), map[string]any{"text_id": "text-id"}).Return(nil, errors.New("connection refused")).Once()
 
 		graphData, getSubgraphErr := graphStore.GetSubgraph(ctx, "text-id")
 
@@ -66,7 +73,9 @@ func TestGraphStore_GetSubgraph(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		graphStore := NewGraphStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"text_id": "text-id"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "$text_id")
+		}), map[string]any{"text_id": "text-id"}).Return(nil, nil).Once()
 
 		graphData, getSubgraphErr := graphStore.GetSubgraph(ctx, "text-id")
 
@@ -87,7 +96,9 @@ func TestGraphStore_GetPath(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		graphStore := NewGraphStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"from_id": "from-id", "to_id": "to-id"}).Return(nil, errors.New("no path found")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "shortestPath")
+		}), map[string]any{"from_id": "from-id", "to_id": "to-id"}).Return(nil, errors.New("no path found")).Once()
 
 		graphData, getPathErr := graphStore.GetPath(ctx, "from-id", "to-id")
 
@@ -100,7 +111,9 @@ func TestGraphStore_GetPath(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		graphStore := NewGraphStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"from_id": "from-id", "to_id": "to-id"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "shortestPath")
+		}), map[string]any{"from_id": "from-id", "to_id": "to-id"}).Return(nil, nil).Once()
 
 		graphData, getPathErr := graphStore.GetPath(ctx, "from-id", "to-id")
 

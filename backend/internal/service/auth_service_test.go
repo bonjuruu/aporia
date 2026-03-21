@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/bonjuruu/aporia/internal/apperror"
 	"github.com/bonjuruu/aporia/internal/models"
@@ -151,7 +152,15 @@ func TestAuthService_Register(t *testing.T) {
 		}
 
 		userStore.On("GetByEmail", ctx, "plato@academy.gr").Return(nil, nil).Once()
-		userStore.On("Create", ctx, mock.AnythingOfType("string"), "plato@academy.gr", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil, errors.New("constraint violation")).Once()
+		userStore.On("Create", ctx, mock.MatchedBy(func(id string) bool { return id != "" }), "plato@academy.gr", mock.MatchedBy(func(hash string) bool { return hash != "" }), mock.MatchedBy(func(createdAt string) bool { return createdAt != "" })).
+			Run(func(args mock.Arguments) {
+				hash := args.Get(3).(string)
+				createdAt := args.Get(4).(string)
+				compareErr := bcrypt.CompareHashAndPassword([]byte(hash), []byte("password123"))
+				assert.NoError(t, compareErr)
+				_, parseErr := time.Parse(time.RFC3339, createdAt)
+				assert.NoError(t, parseErr)
+			}).Return(nil, errors.New("constraint violation")).Once()
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/bonjuruu/aporia/internal/apperror"
@@ -23,7 +24,9 @@ func TestNodeStore_GetAll(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "n:Thinker OR n:Concept OR n:Claim OR n:Text")
+		}), (map[string]any)(nil)).Return(nil, errors.New("connection refused")).Once()
 
 		nodeList, getAllErr := nodeStore.GetAll(ctx)
 
@@ -36,7 +39,9 @@ func TestNodeStore_GetAll(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), mock.Anything).Return([]*neo4j.Record{}, nil).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "n:Thinker OR n:Concept OR n:Claim OR n:Text")
+		}), (map[string]any)(nil)).Return([]*neo4j.Record{}, nil).Once()
 
 		nodeList, getAllErr := nodeStore.GetAll(ctx)
 
@@ -53,7 +58,9 @@ func TestNodeStore_GetAll(t *testing.T) {
 			Keys:   []string{"id", "label", "type", "year"},
 			Values: []any{"a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Plato", "Thinker", int64(-428)},
 		}
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), mock.Anything).Return([]*neo4j.Record{record}, nil).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "n:Thinker OR n:Concept OR n:Claim OR n:Text")
+		}), (map[string]any)(nil)).Return([]*neo4j.Record{record}, nil).Once()
 
 		nodeList, getAllErr := nodeStore.GetAll(ctx)
 
@@ -76,7 +83,9 @@ func TestNodeStore_GetByID(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "n.id = $id")
+		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}).Return(nil, errors.New("connection refused")).Once()
 
 		detail, getByIDErr := nodeStore.GetByID(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
@@ -89,7 +98,9 @@ func TestNodeStore_GetByID(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "nonexistent-id"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "n.id = $id")
+		}), map[string]any{"id": "nonexistent-id"}).Return(nil, nil).Once()
 
 		detail, getByIDErr := nodeStore.GetByID(ctx, "nonexistent-id")
 
@@ -116,7 +127,18 @@ func TestNodeStore_CreateThinker(t *testing.T) {
 			BornYear:    &bornYear,
 		}
 
-		neo4jKit.On("Run", ctx, mock.AnythingOfType("string"), mock.Anything).Return(errors.New("constraint violation")).Once()
+		expectedParams := map[string]any{
+			"id":          "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			"name":        "Plato",
+			"description": "Greek philosopher",
+			"notes":       "",
+			"born_year":   -428,
+			"died_year":   nil,
+			"tradition":   "",
+		}
+		neo4jKit.On("Run", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (n:Thinker")
+		}), expectedParams).Return(errors.New("constraint violation")).Once()
 
 		result, createErr := nodeStore.CreateThinker(ctx, thinker)
 
@@ -136,7 +158,18 @@ func TestNodeStore_CreateThinker(t *testing.T) {
 			BornYear: &bornYear,
 		}
 
-		neo4jKit.On("Run", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil).Once()
+		expectedParams := map[string]any{
+			"id":          "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			"name":        "Plato",
+			"description": "",
+			"notes":       "",
+			"born_year":   -428,
+			"died_year":   nil,
+			"tradition":   "",
+		}
+		neo4jKit.On("Run", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (n:Thinker")
+		}), expectedParams).Return(nil).Once()
 
 		result, createErr := nodeStore.CreateThinker(ctx, thinker)
 
@@ -158,7 +191,9 @@ func TestNodeStore_Delete(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "DETACH DELETE n")
+		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}).Return(nil, errors.New("connection refused")).Once()
 
 		deleteErr := nodeStore.Delete(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
@@ -170,7 +205,9 @@ func TestNodeStore_Delete(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "nonexistent-id"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "DETACH DELETE n")
+		}), map[string]any{"id": "nonexistent-id"}).Return(nil, nil).Once()
 
 		deleteErr := nodeStore.Delete(ctx, "nonexistent-id")
 
@@ -190,7 +227,9 @@ func TestNodeStore_Search(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), map[string]any{"query": "plato"}).Return(nil, errors.New("index unavailable")).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "db.index.fulltext.queryNodes")
+		}), map[string]any{"query": "plato"}).Return(nil, errors.New("index unavailable")).Once()
 
 		nodeList, searchErr := nodeStore.Search(ctx, "plato")
 
@@ -209,7 +248,9 @@ func TestNodeStore_Count(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "count(n) as count")
+		}), (map[string]any)(nil)).Return(nil, errors.New("connection refused")).Once()
 
 		count, countErr := nodeStore.Count(ctx)
 
@@ -222,7 +263,9 @@ func TestNodeStore_Count(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		nodeStore := NewNodeStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "count(n) as count")
+		}), (map[string]any)(nil)).Return(nil, nil).Once()
 
 		count, countErr := nodeStore.Count(ctx)
 
@@ -239,7 +282,9 @@ func TestNodeStore_Count(t *testing.T) {
 			Keys:   []string{"count"},
 			Values: []any{int64(23)},
 		}
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(record, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "count(n) as count")
+		}), (map[string]any)(nil)).Return(record, nil).Once()
 
 		count, countErr := nodeStore.Count(ctx)
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/bonjuruu/aporia/internal/apperror"
@@ -19,8 +20,6 @@ func TestQuoteStore_Create(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create params contain a non-deterministic created_at timestamp, so mock.Anything is correct here
-
 	t.Run("Should return error when neo4j kit fails to run create query", func(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		quoteStore := NewQuoteStore(neo4jKit)
@@ -31,7 +30,19 @@ func TestQuoteStore_Create(t *testing.T) {
 			SourceTextID: "b2c3d4e5-f6a7-8901-bcde-f12345678901",
 		}
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (q:Quote")
+		}), mock.MatchedBy(func(p map[string]any) bool { return true })).
+			Run(func(args mock.Arguments) {
+				params := args.Get(2).(map[string]any)
+				assert.Equal(t, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", params["id"])
+				assert.Equal(t, "c3d4e5f6-a7b8-9012-cdef-123456789012", params["user_id"])
+				assert.Equal(t, "b2c3d4e5-f6a7-8901-bcde-f12345678901", params["source_text_id"])
+				assert.Equal(t, "The unexamined life is not worth living.", params["content"])
+				assert.Nil(t, params["page"])
+				assert.Equal(t, "", params["reaction"])
+				assert.NotEmpty(t, params["created_at"])
+			}).Return(nil, errors.New("connection refused")).Once()
 
 		result, createErr := quoteStore.Create(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", quote)
 
@@ -50,7 +61,19 @@ func TestQuoteStore_Create(t *testing.T) {
 			SourceTextID: "nonexistent-text-id",
 		}
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (q:Quote")
+		}), mock.MatchedBy(func(p map[string]any) bool { return true })).
+			Run(func(args mock.Arguments) {
+				params := args.Get(2).(map[string]any)
+				assert.Equal(t, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", params["id"])
+				assert.Equal(t, "c3d4e5f6-a7b8-9012-cdef-123456789012", params["user_id"])
+				assert.Equal(t, "nonexistent-text-id", params["source_text_id"])
+				assert.Equal(t, "The unexamined life is not worth living.", params["content"])
+				assert.Nil(t, params["page"])
+				assert.Equal(t, "", params["reaction"])
+				assert.NotEmpty(t, params["created_at"])
+			}).Return(nil, nil).Once()
 
 		result, createErr := quoteStore.Create(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", quote)
 
@@ -85,7 +108,19 @@ func TestQuoteStore_Create(t *testing.T) {
 				"Apology",
 			},
 		}
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(record, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (q:Quote")
+		}), mock.MatchedBy(func(p map[string]any) bool { return true })).
+			Run(func(args mock.Arguments) {
+				params := args.Get(2).(map[string]any)
+				assert.Equal(t, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", params["id"])
+				assert.Equal(t, "c3d4e5f6-a7b8-9012-cdef-123456789012", params["user_id"])
+				assert.Equal(t, "b2c3d4e5-f6a7-8901-bcde-f12345678901", params["source_text_id"])
+				assert.Equal(t, "The unexamined life is not worth living.", params["content"])
+				assert.Nil(t, params["page"])
+				assert.Equal(t, "Foundational claim", params["reaction"])
+				assert.NotEmpty(t, params["created_at"])
+			}).Return(record, nil).Once()
 
 		result, createErr := quoteStore.Create(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", quote)
 
@@ -110,7 +145,9 @@ func TestQuoteStore_ListByUser(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		quoteStore := NewQuoteStore(neo4jKit)
 
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CAPTURED")
+		}), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return(nil, errors.New("connection refused")).Once()
 
 		quoteList, listErr := quoteStore.ListByUser(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "")
 
@@ -123,7 +160,9 @@ func TestQuoteStore_ListByUser(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		quoteStore := NewQuoteStore(neo4jKit)
 
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return([]*neo4j.Record{}, nil).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CAPTURED")
+		}), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return([]*neo4j.Record{}, nil).Once()
 
 		quoteList, listErr := quoteStore.ListByUser(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "")
 
@@ -150,7 +189,9 @@ func TestQuoteStore_ListByUser(t *testing.T) {
 				"Apology",
 			},
 		}
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return([]*neo4j.Record{record}, nil).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CAPTURED")
+		}), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return([]*neo4j.Record{record}, nil).Once()
 
 		quoteList, listErr := quoteStore.ListByUser(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "")
 
@@ -169,7 +210,9 @@ func TestQuoteStore_ListByUser(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		quoteStore := NewQuoteStore(neo4jKit)
 
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "text_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"}).Return([]*neo4j.Record{}, nil).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CAPTURED") && strings.Contains(q, "$text_id")
+		}), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "text_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"}).Return([]*neo4j.Record{}, nil).Once()
 
 		quoteList, listErr := quoteStore.ListByUser(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "b2c3d4e5-f6a7-8901-bcde-f12345678901")
 
@@ -189,7 +232,9 @@ func TestQuoteStore_Update(t *testing.T) {
 		quoteStore := NewQuoteStore(neo4jKit)
 
 		reaction := "disagree"
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "disagree"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "q.reaction = $reaction")
+		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "disagree"}).Return(nil, errors.New("connection refused")).Once()
 
 		updateErr := quoteStore.Update(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", &reaction, nil)
 
@@ -202,7 +247,9 @@ func TestQuoteStore_Update(t *testing.T) {
 		quoteStore := NewQuoteStore(neo4jKit)
 
 		reaction := "disagree"
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "nonexistent-id", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "disagree"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "q.reaction = $reaction")
+		}), map[string]any{"id": "nonexistent-id", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "disagree"}).Return(nil, nil).Once()
 
 		updateErr := quoteStore.Update(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "nonexistent-id", &reaction, nil)
 
@@ -236,7 +283,9 @@ func TestQuoteStore_Update(t *testing.T) {
 			Values: []any{"a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
 		}
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "insightful", "page": 42}).Return(record, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "q.reaction = $reaction") && strings.Contains(q, "q.page = $page")
+		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "insightful", "page": 42}).Return(record, nil).Once()
 
 		updateErr := quoteStore.Update(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", &reaction, &page)
 
@@ -254,7 +303,9 @@ func TestQuoteStore_Delete(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		quoteStore := NewQuoteStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "DETACH DELETE q")
+		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return(nil, errors.New("connection refused")).Once()
 
 		deleteErr := quoteStore.Delete(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
@@ -266,7 +317,9 @@ func TestQuoteStore_Delete(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		quoteStore := NewQuoteStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"id": "nonexistent-id", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "DETACH DELETE q")
+		}), map[string]any{"id": "nonexistent-id", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012"}).Return(nil, nil).Once()
 
 		deleteErr := quoteStore.Delete(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "nonexistent-id")
 
@@ -306,7 +359,9 @@ func TestQuoteStore_Promote(t *testing.T) {
 			"year":    nil,
 		}
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (n:Claim)")
+		}), map[string]any{"quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(nil, errors.New("connection refused")).Once()
 
 		result, promoteErr := quoteStore.Promote(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", promoteProps)
 
@@ -326,7 +381,9 @@ func TestQuoteStore_Promote(t *testing.T) {
 			"year":    nil,
 		}
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"quote_id": "nonexistent-id", "props": promoteProps}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (n:Claim)")
+		}), map[string]any{"quote_id": "nonexistent-id", "props": promoteProps}).Return(nil, nil).Once()
 
 		result, promoteErr := quoteStore.Promote(ctx, "nonexistent-id", "Claim", promoteProps)
 
@@ -357,7 +414,9 @@ func TestQuoteStore_Promote(t *testing.T) {
 				nil,
 			},
 		}
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(record, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "CREATE (n:Claim)")
+		}), map[string]any{"quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(record, nil).Once()
 
 		result, promoteErr := quoteStore.Promote(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", promoteProps)
 

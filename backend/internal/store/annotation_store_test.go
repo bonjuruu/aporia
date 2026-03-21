@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	neo4jKitMock "github.com/bonjuruu/aporia/internal/kit/neo4j_kit/mock"
@@ -20,7 +21,14 @@ func TestAnnotationStore_Upsert(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		annotationStore := NewAnnotationStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), mock.Anything).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "MERGE (u)-[a:ANNOTATES]->(n)")
+		}), map[string]any{
+			"user_id": "user-id",
+			"node_id": "node-id",
+			"stance":  "agree",
+			"notes":   "Great argument",
+		}).Return(nil, errors.New("connection refused")).Once()
 
 		upsertErr := annotationStore.Upsert(ctx, "user-id", "node-id", "agree", "Great argument")
 
@@ -38,7 +46,9 @@ func TestAnnotationStore_GetByUserID(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		annotationStore := NewAnnotationStore(neo4jKit)
 
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "user-id"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "ANNOTATES")
+		}), map[string]any{"user_id": "user-id"}).Return(nil, errors.New("connection refused")).Once()
 
 		annotationList, getByUserIDErr := annotationStore.GetByUserID(ctx, "user-id")
 
@@ -55,7 +65,9 @@ func TestAnnotationStore_GetByUserID(t *testing.T) {
 			Keys:   []string{"node_id", "stance", "notes"},
 			Values: []any{"node-id-1", "agree", "Compelling argument"},
 		}
-		neo4jKit.On("Collect", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "user-id"}).Return([]*neo4j.Record{record}, nil).Once()
+		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "ANNOTATES")
+		}), map[string]any{"user_id": "user-id"}).Return([]*neo4j.Record{record}, nil).Once()
 
 		annotationList, getByUserIDErr := annotationStore.GetByUserID(ctx, "user-id")
 
@@ -78,7 +90,9 @@ func TestAnnotationStore_GetByUserAndNode(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		annotationStore := NewAnnotationStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "user-id", "node_id": "node-id"}).Return(nil, errors.New("connection refused")).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "ANNOTATES")
+		}), map[string]any{"user_id": "user-id", "node_id": "node-id"}).Return(nil, errors.New("connection refused")).Once()
 
 		annotation, getByUserAndNodeErr := annotationStore.GetByUserAndNode(ctx, "user-id", "node-id")
 
@@ -91,7 +105,9 @@ func TestAnnotationStore_GetByUserAndNode(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		annotationStore := NewAnnotationStore(neo4jKit)
 
-		neo4jKit.On("Single", ctx, mock.AnythingOfType("string"), map[string]any{"user_id": "user-id", "node_id": "node-id"}).Return(nil, nil).Once()
+		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
+			return strings.Contains(q, "ANNOTATES")
+		}), map[string]any{"user_id": "user-id", "node_id": "node-id"}).Return(nil, nil).Once()
 
 		annotation, getByUserAndNodeErr := annotationStore.GetByUserAndNode(ctx, "user-id", "node-id")
 

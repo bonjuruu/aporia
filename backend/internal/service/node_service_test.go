@@ -100,7 +100,17 @@ func TestNodeService_CreateNode(t *testing.T) {
 			Name: "Aristotle",
 		}
 
-		nodeStore.On("CreateThinker", ctx, mock.AnythingOfType("models.Thinker")).Return(nil, errors.New("constraint violation")).Once()
+		nodeStore.On("CreateThinker", ctx, mock.MatchedBy(func(thinker models.Thinker) bool { return thinker.Name != "" })).
+			Run(func(args mock.Arguments) {
+				thinker := args.Get(1).(models.Thinker)
+				assert.NotEmpty(t, thinker.ID)
+				assert.Equal(t, "Aristotle", thinker.Name)
+				assert.Empty(t, thinker.Description)
+				assert.Empty(t, thinker.Notes)
+				assert.Nil(t, thinker.BornYear)
+				assert.Nil(t, thinker.DiedYear)
+				assert.Empty(t, thinker.Tradition)
+			}).Return(nil, errors.New("constraint violation")).Once()
 
 		result, createNodeErr := nodeService.CreateNode(ctx, createNodeRequest)
 
@@ -146,7 +156,8 @@ func TestNodeService_UpdateNode(t *testing.T) {
 			Name: &name,
 		}
 
-		nodeStore.On("UpdateThinker", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", mock.AnythingOfType("models.ThinkerUpdate")).Return(errors.New("node not found")).Once()
+		expectedThinkerUpdate := models.ThinkerUpdate{Name: &name}
+		nodeStore.On("UpdateThinker", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", expectedThinkerUpdate).Return(errors.New("node not found")).Once()
 
 		updateNodeErr := nodeService.UpdateNode(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", updateNodeRequest)
 
