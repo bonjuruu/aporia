@@ -119,6 +119,7 @@ func runMigrationFile(ctx context.Context, driver neo4j.DriverWithContext, fileP
 	}()
 
 	for statement := range strings.SplitSeq(string(content), ";") {
+		statement = stripCypherComments(statement)
 		statement = strings.TrimSpace(statement)
 		if statement == "" {
 			continue
@@ -134,6 +135,19 @@ func runMigrationFile(ctx context.Context, driver neo4j.DriverWithContext, fileP
 	}
 
 	return nil
+}
+
+// stripCypherComments removes // comment lines from a Cypher statement.
+func stripCypherComments(statement string) string {
+	var lineList []string
+	for line := range strings.SplitSeq(statement, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+		lineList = append(lineList, line)
+	}
+	return strings.Join(lineList, "\n")
 }
 
 // parseVersion extracts the version number from a filename like "000001_schema.up.cypher".

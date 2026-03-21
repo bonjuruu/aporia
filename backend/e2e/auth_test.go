@@ -12,11 +12,16 @@ import (
 func TestAuthJourney(t *testing.T) {
 	cleanDB(t)
 
-	// Register a new user
-	var registeredUser models.User
+	// Register a new user — returns a token
+	var registerResponse response.TokenResponse
 	doRequest(t, http.MethodPost, "/api/auth/register",
 		map[string]string{"email": "plato@academy.gr", "password": "password123"},
-		"", http.StatusCreated, &registeredUser)
+		"", http.StatusCreated, &registerResponse)
+	assert.NotEmpty(t, registerResponse.Token)
+
+	// Verify the token works immediately (auto-login)
+	var registeredUser models.User
+	doRequest(t, http.MethodGet, "/api/auth/me", nil, registerResponse.Token, http.StatusOK, &registeredUser)
 	assert.Equal(t, "plato@academy.gr", registeredUser.Email)
 	assert.NotEmpty(t, registeredUser.ID)
 

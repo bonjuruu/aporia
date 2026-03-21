@@ -25,13 +25,19 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
         "201":
-          description: User created
+          description: User created and authenticated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/User"
+                $ref: "#/components/schemas/TokenResponse"
         "400":
-          description: Validation error or email already taken
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Email already registered
           content:
             application/json:
               schema:

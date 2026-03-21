@@ -32,7 +32,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.Error(t, registerErr)
 		userStore.AssertNotCalled(t, "GetByEmail")
 		userStore.AssertNotCalled(t, "Create")
@@ -49,7 +49,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.Error(t, registerErr)
 		appErr, ok := errors.AsType[*apperror.AppError](registerErr)
 		assert.True(t, ok)
@@ -69,7 +69,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.Error(t, registerErr)
 		appErr, ok := errors.AsType[*apperror.AppError](registerErr)
 		assert.True(t, ok)
@@ -89,7 +89,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.Error(t, registerErr)
 		userStore.AssertNotCalled(t, "GetByEmail")
 		userStore.AssertNotCalled(t, "Create")
@@ -106,7 +106,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.Error(t, registerErr)
 		appErr, ok := errors.AsType[*apperror.AppError](registerErr)
 		assert.True(t, ok)
@@ -132,7 +132,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.EqualError(t, registerErr, "email already registered")
 		appErr, ok := errors.AsType[*apperror.AppError](registerErr)
 		assert.True(t, ok)
@@ -155,7 +155,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.EqualError(t, registerErr, "failed to create user: constraint violation")
 		_, isAppErr := errors.AsType[*apperror.AppError](registerErr)
 		assert.False(t, isAppErr)
@@ -175,7 +175,7 @@ func TestAuthService_Register(t *testing.T) {
 
 		result, registerErr := authService.Register(ctx, registerRequest)
 
-		assert.Nil(t, result)
+		assert.Empty(t, result)
 		assert.EqualError(t, registerErr, "failed to check existing user: connection refused")
 		userStore.AssertNotCalled(t, "Create")
 		userStore.AssertExpectations(t)

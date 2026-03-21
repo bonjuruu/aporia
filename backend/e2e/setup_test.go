@@ -87,17 +87,8 @@ func registerAndLogin(t *testing.T, email, password string) string {
 	testRouter.ServeHTTP(registerRecorder, registerRequest)
 	require.Equal(t, http.StatusCreated, registerRecorder.Code, "failed to register user: %s", registerRecorder.Body.String())
 
-	loginBody, loginMarshalErr := json.Marshal(map[string]string{"email": email, "password": password})
-	require.NoError(t, loginMarshalErr)
-
-	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewBuffer(loginBody))
-	loginRequest.Header.Set("Content-Type", "application/json")
-	loginRecorder := httptest.NewRecorder()
-	testRouter.ServeHTTP(loginRecorder, loginRequest)
-	require.Equal(t, http.StatusOK, loginRecorder.Code, "failed to login user: %s", loginRecorder.Body.String())
-
 	var tokenResponse map[string]string
-	require.NoError(t, json.Unmarshal(loginRecorder.Body.Bytes(), &tokenResponse))
+	require.NoError(t, json.Unmarshal(registerRecorder.Body.Bytes(), &tokenResponse))
 	return tokenResponse["token"]
 }
 

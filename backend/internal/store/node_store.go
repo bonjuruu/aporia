@@ -65,8 +65,8 @@ func (s *nodeStore) GetAll(ctx context.Context) ([]response.GraphNode, error) {
 
 func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetail, error) {
 	record, singleErr := s.neo4jKit.Single(ctx, `
-		MATCH (n {id: $id})
-		WHERE n:Thinker OR n:Concept OR n:Claim OR n:Text
+		MATCH (n)
+		WHERE n.id = $id AND (n:Thinker OR n:Concept OR n:Claim OR n:Text)
 		OPTIONAL MATCH (n)-[r]->(out)
 		WHERE out:Thinker OR out:Concept OR out:Claim OR out:Text
 		WITH n, collect(DISTINCT {edge_id: r.id, edge_type: type(r), edge_desc: r.description, edge_source_text: r.source_text_id, target_id: out.id, target_label: coalesce(out.name, out.title, out.content), target_type: toUpper(labels(out)[0]), target_year: coalesce(out.born_year, out.published_year, out.year)}) as outgoing
@@ -92,7 +92,7 @@ func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetai
 	if !ok {
 		return nil, fmt.Errorf("unexpected node type: %T", nodeVal)
 	}
-	props := node.Props
+	props := util.CamelizeKeys(node.Props)
 	detail := &response.NodeDetail{
 		ID:         id,
 		Type:       models.NodeType(nodeType),

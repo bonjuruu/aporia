@@ -27,35 +27,35 @@ func NewAuthService(userStore store.UserStore, jwtSecret []byte) *AuthService {
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, req request.RegisterRequest) (*models.User, error) {
+func (s *AuthService) Register(ctx context.Context, req request.RegisterRequest) (string, error) {
 	if validateErr := validate.Struct(req); validateErr != nil {
-		return nil, apperror.NewBadRequest(validateErr.Error())
+		return "", apperror.NewBadRequest(validateErr.Error())
 	}
 
 	existing, getByEmailErr := s.userStore.GetByEmail(ctx, req.Email)
 	if getByEmailErr != nil {
-		return nil, fmt.Errorf("failed to check existing user: %w", getByEmailErr)
+		return "", fmt.Errorf("failed to check existing user: %w", getByEmailErr)
 	}
 	if existing != nil {
-		return nil, apperror.NewConflict("email already registered")
+		return "", apperror.NewConflict("email already registered")
 	}
 
 	hash, hashErr := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
 	if hashErr != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", hashErr)
+		return "", fmt.Errorf("failed to hash password: %w", hashErr)
 	}
 
 	id := uuid.New().String()
 	createdAt := time.Now().UTC().Format(time.RFC3339)
 
-	user, createErr := s.userStore.Create(ctx, id, req.Email, string(hash), createdAt)
+	_, createErr := s.userStore.Create(ctx, id, req.Email, string(hash), createdAt)
 	if createErr != nil {
 		slog.Error("failed to register user", "email", req.Email, "error", createErr)
-		return nil, fmt.Errorf("failed to create user: %w", createErr)
+		return "", fmt.Errorf("failed to create user: %w", createErr)
 	}
 
 	slog.Info("user registered", "id", id, "email", req.Email)
-	return user, nil
+	return s.generateToken(id)
 }
 
 func (s *AuthService) Login(ctx context.Context, req request.LoginRequest) (string, error) {
@@ -75,13 +75,16 @@ func (s *AuthService) Login(ctx context.Context, req request.LoginRequest) (stri
 		return "", apperror.NewUnauthorized("invalid credentials")
 	}
 
+	return s.generateToken(user.ID)
+}
+
+func (s *AuthService) generateToken(userID string) (string, error) {
 	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,
+		"sub": userID,
 		"iat": now.Unix(),
 		"exp": now.Add(7 * 24 * time.Hour).Unix(),
 	})
-
 	return token.SignedString(s.jwtSecret)
 }
 

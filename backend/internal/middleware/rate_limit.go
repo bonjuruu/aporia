@@ -13,6 +13,7 @@ type ipLimiter struct {
 	entries map[string]*bucket
 	rate    float64
 	burst   int
+	done    chan struct{}
 }
 
 type bucket struct {
@@ -25,6 +26,7 @@ func newIPLimiter(rate float64, burst int) *ipLimiter {
 		entries: make(map[string]*bucket),
 		rate:    rate,
 		burst:   burst,
+		done:    make(chan struct{}),
 	}
 
 	go limiter.cleanup()
@@ -63,15 +65,20 @@ func (l *ipLimiter) cleanup() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		l.mu.Lock()
-		cutoff := time.Now().Add(-10 * time.Minute)
-		for ip, b := range l.entries {
-			if b.lastTime.Before(cutoff) {
-				delete(l.entries, ip)
+	for {
+		select {
+		case <-ticker.C:
+			l.mu.Lock()
+			cutoff := time.Now().Add(-10 * time.Minute)
+			for ip, b := range l.entries {
+				if b.lastTime.Before(cutoff) {
+					delete(l.entries, ip)
+				}
 			}
+			l.mu.Unlock()
+		case <-l.done:
+			return
 		}
-		l.mu.Unlock()
 	}
 }
 
