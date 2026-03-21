@@ -1,4 +1,5 @@
-import { EditableField, PropertyRow } from './shared'
+import { EditableField } from './EditableField'
+import { PropertyRow } from './PropertyRow'
 import type { ThinkerProperties, ThinkerEditForm } from '../../types'
 
 interface Props {

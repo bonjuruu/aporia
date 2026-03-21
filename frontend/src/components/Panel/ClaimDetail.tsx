@@ -1,4 +1,5 @@
-import { EditableField, PropertyRow } from './shared'
+import { EditableField } from './EditableField'
+import { PropertyRow } from './PropertyRow'
 import type { ClaimProperties, ClaimEditForm } from '../../types'
 
 interface Props {

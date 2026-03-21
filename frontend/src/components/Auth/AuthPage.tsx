@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 
 interface Props {
   onLogin: (email: string, password: string) => Promise<void>
@@ -12,7 +12,7 @@ export function AuthPage({ onLogin, onRegister }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (loading) return
     setError(null)
