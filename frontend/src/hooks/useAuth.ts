@@ -1,37 +1,32 @@
 import { useState, useEffect, useCallback } from 'react'
-import { login as apiLogin, register as apiRegister, fetchMe } from '../api/client'
+import { login as apiLogin, register as apiRegister, logout as apiLogout, fetchMe, UnauthorizedError } from '../api/client'
 import type { AuthUser } from '../types'
-
-function hasToken(): boolean {
-  return !!localStorage.getItem('aporia_token')
-}
 
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [fetchCount, setFetchCount] = useState(0)
-  // Start unsettled (-1) if there's a token to verify; settled (0) if no token
-  const [settledCount, setSettledCount] = useState(hasToken() ? -1 : 0)
+  // Always start unsettled — we need to call /auth/me to check if the cookie is valid
+  const [settledCount, setSettledCount] = useState(-1)
 
   useEffect(() => {
-    if (!hasToken()) return
-    let cancelled = false
-    fetchMe()
-      .then(me => { if (!cancelled) { setUser(me); setError(null) } })
+    const controller = new AbortController()
+    fetchMe(controller.signal)
+      .then(me => { if (!controller.signal.aborted) { setUser(me); setError(null) } })
       .catch(fetchMeErr => {
-        if (!cancelled) {
-          // 401s are handled by the request() helper which clears the token.
-          // Non-401 errors (network, 500) should surface so the user can retry.
-          if (hasToken()) {
-            setError(fetchMeErr instanceof Error ? fetchMeErr.message : 'Failed to verify session')
-          }
+        if (controller.signal.aborted) return
+        // 401 means no valid cookie — not an error, just not logged in
+        if (fetchMeErr instanceof UnauthorizedError) {
+          setUser(null)
+        } else {
+          setError(fetchMeErr instanceof Error ? fetchMeErr.message : 'Failed to verify session')
         }
       })
-      .finally(() => { if (!cancelled) setSettledCount(fetchCount) })
-    return () => { cancelled = true }
+      .finally(() => { if (!controller.signal.aborted) setSettledCount(fetchCount) })
+    return () => controller.abort()
   }, [fetchCount])
 
-  const loading = hasToken() && settledCount !== fetchCount
+  const loading = settledCount !== fetchCount
 
   const retry = useCallback(() => {
     setError(null)
@@ -39,32 +34,31 @@ export function useAuth() {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const { token } = await apiLogin(email, password)
-    localStorage.setItem('aporia_token', token)
-    try {
-      const me = await fetchMe()
-      setUser(me)
-    } catch (fetchMeErr) {
-      localStorage.removeItem('aporia_token')
-      throw fetchMeErr
-    }
+    await apiLogin(email, password)
+    // Cookie is now set by the server — trigger fetchMe to pick up user data
+    setFetchCount(c => c + 1)
   }, [])
 
   const registerUser = useCallback(async (email: string, password: string) => {
-    const { token } = await apiRegister(email, password)
-    localStorage.setItem('aporia_token', token)
-    try {
-      const me = await fetchMe()
-      setUser(me)
-    } catch (fetchMeErr) {
-      localStorage.removeItem('aporia_token')
-      throw fetchMeErr
-    }
+    await apiRegister(email, password)
+    setFetchCount(c => c + 1)
   }, [])
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('aporia_token')
+  const logout = useCallback(async () => {
+    try {
+      await apiLogout()
+    } catch {
+      // Best-effort — clear local state even if the server call fails
+    }
     setUser(null)
+    setError(null)
+  }, [])
+
+  // Listen for 401 events from the API client so we stay in the React tree
+  useEffect(() => {
+    const handleUnauthorized = () => { setUser(null) }
+    window.addEventListener('aporia:unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('aporia:unauthorized', handleUnauthorized)
   }, [])
 
   return { user, loading, error, login, register: registerUser, logout, retry }

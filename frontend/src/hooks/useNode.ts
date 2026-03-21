@@ -14,17 +14,16 @@ export function useNode(nodeId: string | null) {
   useEffect(() => {
     if (!nodeId) return
     const key = `${nodeId}-${fetchCount}`
-    let cancelled = false
-    fetchNode(nodeId)
-      .then(result => { if (!cancelled) { setData(result); setError(null) } })
+    const controller = new AbortController()
+    fetchNode(nodeId, controller.signal)
+      .then(result => { if (!controller.signal.aborted) { setData(result); setError(null) } })
       .catch(fetchErr => {
-        if (!cancelled) {
-          setData(null)
-          setError(fetchErr instanceof Error ? fetchErr.message : 'Failed to load node')
-        }
+        if (controller.signal.aborted) return
+        setData(null)
+        setError(fetchErr instanceof Error ? fetchErr.message : 'Failed to load node')
       })
-      .finally(() => { if (!cancelled) setSettledKey(key) })
-    return () => { cancelled = true }
+      .finally(() => { if (!controller.signal.aborted) setSettledKey(key) })
+    return () => controller.abort()
   }, [nodeId, fetchCount])
 
   const refetch = useCallback(() => {
@@ -41,9 +40,10 @@ export function useNode(nodeId: string | null) {
 
   const resolvedError = useMemo(() => {
     if (!nodeId) return null
-    if (data?.id === nodeId) return null
+    // Only return the error once the latest fetch has settled
+    if (settledKey !== fetchKey) return null
     return error
-  }, [nodeId, data, error])
+  }, [nodeId, error, settledKey, fetchKey])
 
   // Loading until the fetch for the current nodeId + fetchCount settles
   const loading = nodeId !== null && settledKey !== fetchKey

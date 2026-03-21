@@ -1,57 +1,126 @@
-import type { EdgeType, GraphData, GraphEdge, NodeDetail, SearchResult, AuthUser } from '../types'
+import type { EdgeType, GraphData, GraphNode, GraphEdge, NodeDetail, SearchResult, AuthUser, CreateNodeBody, UpdateNodeBody } from '../types'
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api'
+const BASE = '/api'
 
-if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
-  console.warn('VITE_API_URL is not set — API calls will use localhost fallback')
+function getCSRFToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)aporia_csrf=([^;]+)/)
+  return match ? match[1] : ''
 }
 
-function authHeaders(): HeadersInit {
-  const token = localStorage.getItem('aporia_token')
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+function requestHeaders(method: string, hasBody: boolean): HeadersInit {
+  const headers: Record<string, string> = {}
+  if (hasBody) headers['Content-Type'] = 'application/json'
+  if (method !== 'GET' && method !== 'HEAD') {
+    const csrfToken = getCSRFToken()
+    if (csrfToken) headers['X-CSRF-Token'] = csrfToken
   }
+  return headers
 }
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    ...options,
-    headers: { ...authHeaders(), ...options?.headers },
-  })
-  if (res.status === 401) {
-    const token = localStorage.getItem('aporia_token')
-    if (token) {
-      localStorage.removeItem('aporia_token')
-      window.location.href = '/'
+class UnauthorizedError extends Error {
+  constructor() { super('Unauthorized') }
+}
+
+function handle401(): never {
+  window.dispatchEvent(new Event('aporia:unauthorized'))
+  throw new UnauthorizedError()
+}
+
+export { UnauthorizedError }
+
+async function parseErrorBody(res: Response): Promise<string> {
+  const text = await res.text().catch(() => '')
+  if (!text) return `Request failed: ${res.status}`
+  try {
+    const json = JSON.parse(text)
+    if (json.error) return json.error
+  } catch { /* not JSON */ }
+  return `Request failed: ${res.status} — ${text.slice(0, 200)}`
+}
+
+interface RequestOptions extends RequestInit {
+  skipAuth401?: boolean
+  allow204?: boolean
+}
+
+const DEFAULT_TIMEOUT_MS = 30_000
+
+async function request<T>(url: string, options?: RequestOptions): Promise<T> {
+  const method = options?.method ?? 'GET'
+  const hasBody = options?.body != null
+  const skipAuth401 = options?.skipAuth401
+  const timeoutController = new AbortController()
+  const timeoutId = options?.signal ? undefined : setTimeout(() => timeoutController.abort(), DEFAULT_TIMEOUT_MS)
+  const signal = options?.signal ?? timeoutController.signal
+  let res: Response
+  try {
+    res = await fetch(url, {
+      ...options,
+      signal,
+      credentials: 'include',
+      headers: { ...requestHeaders(method, hasBody), ...options?.headers },
+    })
+  } catch (fetchErr) {
+    clearTimeout(timeoutId)
+    if (fetchErr instanceof DOMException && fetchErr.name === 'AbortError') {
+      if (!options?.signal?.aborted && timeoutController.signal.aborted) {
+        throw new Error('Request timed out')
+      }
+      throw fetchErr
     }
-    throw new Error('Unauthorized')
+    throw new Error('Network error — check your connection and try again')
   }
+  clearTimeout(timeoutId)
+  if (res.status === 401 && !skipAuth401) handle401()
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.error || `Request failed: ${res.status}`)
+    const message = await parseErrorBody(res)
+    throw new Error(message)
   }
-  if (res.status === 204) return undefined as T
+  if (res.status === 204 || res.headers.get('content-length') === '0') {
+    if (options?.allow204) return undefined as unknown as T
+    throw new Error(`Unexpected empty response (${res.status}) from ${url}`)
+  }
   const text = await res.text()
-  return text ? JSON.parse(text) : (undefined as T)
+  if (!text) {
+    if (options?.allow204) return undefined as unknown as T
+    throw new Error(`Unexpected empty body from ${url}`)
+  }
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error(`Invalid JSON response from ${url}`)
+  }
+}
+
+async function requestVoid(url: string, options?: RequestOptions): Promise<void> {
+  await request<unknown>(url, { ...options, allow204: true })
 }
 
 // Graph
-export function fetchGraph(): Promise<GraphData> {
-  return request(`${BASE}/graph`)
+export function fetchGraph(signal?: AbortSignal): Promise<GraphData> {
+  return request(`${BASE}/graph`, signal ? { signal } : undefined)
 }
 
-export function fetchSubgraph(textId: string): Promise<GraphData> {
-  return request(`${BASE}/graph/subgraph/${textId}`)
+export function fetchSubgraph(textId: string, signal?: AbortSignal): Promise<GraphData> {
+  return request(`${BASE}/graph/subgraph/${encodeURIComponent(textId)}`, signal ? { signal } : undefined)
 }
 
-export function fetchPath(fromId: string, toId: string): Promise<GraphData> {
-  return request(`${BASE}/graph/path?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`)
+export function fetchPath(fromId: string, toId: string, signal?: AbortSignal): Promise<GraphData> {
+  return request(`${BASE}/graph/path?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`, signal ? { signal } : undefined)
 }
 
 // Nodes
-export function fetchNode(id: string): Promise<NodeDetail> {
-  return request(`${BASE}/nodes/${id}`)
+export function fetchNodes(signal?: AbortSignal): Promise<GraphNode[]> {
+  return request(`${BASE}/nodes`, signal ? { signal } : undefined)
+}
+
+export async function fetchNodesByType(type: string, signal?: AbortSignal): Promise<GraphNode[]> {
+  const nodeList = await fetchNodes(signal)
+  return nodeList.filter(n => n.type === type)
+}
+
+export function fetchNode(id: string, signal?: AbortSignal): Promise<NodeDetail> {
+  return request(`${BASE}/nodes/${encodeURIComponent(id)}`, signal ? { signal } : undefined)
 }
 
 export function searchNodes(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
@@ -59,15 +128,15 @@ export function searchNodes(query: string, signal?: AbortSignal): Promise<Search
 }
 
 // Nodes — mutations
-export function createNode(body: Record<string, unknown>): Promise<NodeDetail> {
+export function createNode(body: CreateNodeBody): Promise<NodeDetail> {
   return request(`${BASE}/nodes`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
-export function updateNode(id: string, body: Record<string, unknown>): Promise<{ status: string }> {
-  return request(`${BASE}/nodes/${id}`, {
+export function updateNode(id: string, body: UpdateNodeBody): Promise<void> {
+  return requestVoid(`${BASE}/nodes/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify(body),
   })
@@ -88,20 +157,28 @@ export function createEdge(body: {
 }
 
 // Auth
-export function login(email: string, password: string): Promise<{ token: string }> {
-  return request(`${BASE}/auth/login`, {
+export async function login(email: string, password: string): Promise<void> {
+  await request(`${BASE}/auth/login`, {
     method: 'POST',
     body: JSON.stringify({ email, password }),
+    skipAuth401: true,
   })
 }
 
-export function register(email: string, password: string): Promise<{ token: string }> {
-  return request(`${BASE}/auth/register`, {
+export async function register(email: string, password: string): Promise<void> {
+  await request(`${BASE}/auth/register`, {
     method: 'POST',
     body: JSON.stringify({ email, password }),
+    skipAuth401: true,
   })
 }
 
-export function fetchMe(): Promise<AuthUser> {
-  return request(`${BASE}/auth/me`)
+export async function logout(): Promise<void> {
+  await requestVoid(`${BASE}/auth/logout`, {
+    method: 'POST',
+  })
+}
+
+export function fetchMe(signal?: AbortSignal): Promise<AuthUser> {
+  return request(`${BASE}/auth/me`, signal ? { signal } : undefined)
 }

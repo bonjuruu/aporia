@@ -9,12 +9,15 @@ export function useGraph() {
   const [settledCount, setSettledCount] = useState(-1)
 
   useEffect(() => {
-    let cancelled = false
-    fetchGraph()
-      .then(graphData => { if (!cancelled) { setData(graphData); setError(null) } })
-      .catch(fetchGraphErr => { if (!cancelled) setError(fetchGraphErr.message) })
-      .finally(() => { if (!cancelled) setSettledCount(fetchCount) })
-    return () => { cancelled = true }
+    const controller = new AbortController()
+    fetchGraph(controller.signal)
+      .then(graphData => { if (!controller.signal.aborted) { setData(graphData); setError(null) } })
+      .catch(fetchGraphErr => {
+        if (controller.signal.aborted) return
+        setError(fetchGraphErr instanceof Error ? fetchGraphErr.message : 'Failed to load graph')
+      })
+      .finally(() => { if (!controller.signal.aborted) setSettledCount(fetchCount) })
+    return () => controller.abort()
   }, [fetchCount])
 
   // Derive loading: unsettled whenever a new fetch is in-flight
