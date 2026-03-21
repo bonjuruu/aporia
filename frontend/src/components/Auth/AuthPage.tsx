@@ -38,12 +38,14 @@ export function AuthPage({ onLogin, onRegister }: Props) {
 
         <form onSubmit={handleSubmit}>
           <div className="form-field--md">
-            <label className="meta-label">
+            <label className="meta-label" htmlFor="auth-email">
               Identifier
             </label>
             <input
+              id="auth-email"
               className="input"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="email@domain.com"
@@ -52,22 +54,25 @@ export function AuthPage({ onLogin, onRegister }: Props) {
           </div>
 
           <div className="form-field--lg">
-            <label className="meta-label">
+            <label className="meta-label" htmlFor="auth-password">
               Access Key
             </label>
             <input
+              id="auth-password"
               className="input"
               type="password"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="minimum 8 characters"
               required
               minLength={8}
+              maxLength={72}
             />
           </div>
 
           {error && (
-            <div className="auth-card__error">
+            <div className="auth-card__error" role="alert">
               {error}
             </div>
           )}
@@ -85,7 +90,7 @@ export function AuthPage({ onLogin, onRegister }: Props) {
         <div className="text-center">
           <button
             className="link-btn"
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null) }}
+            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setEmail(''); setPassword(''); setError(null) }}
           >
             {mode === 'login' ? 'REQUEST NEW ACCESS' : 'EXISTING ACCESS'}
           </button>

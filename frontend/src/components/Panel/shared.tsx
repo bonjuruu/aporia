@@ -1,14 +1,5 @@
-import { useState } from 'react'
+import { useId } from 'react'
 import type { ConnectionEntry } from '../../types'
-
-function activateOnKeyDown(handler: () => void) {
-  return (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      handler()
-    }
-  }
-}
 
 export function ConnectionList({ label, connections, onNodeClick }: {
   label: string
@@ -17,50 +8,39 @@ export function ConnectionList({ label, connections, onNodeClick }: {
 }) {
   if (connections.length === 0) return null
   return (
-    <div style={{ marginTop: 20 }}>
+    <div className="connection-list">
       <div className="meta-label" style={{ marginBottom: 8 }}>{label}</div>
       {connections.map(conn => (
-        <div
+        <button
           key={conn.edge.id}
-          role="button"
-          tabIndex={0}
+          type="button"
           onClick={() => onNodeClick(conn.node.id)}
-          onKeyDown={activateOnKeyDown(() => onNodeClick(conn.node.id))}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 0',
-            cursor: 'pointer',
-            borderBottom: '1px solid var(--color-border)',
-          }}
+          className="connection-list__btn"
         >
           <span className="node-badge" data-type={conn.node.type}>
             {conn.node.type}
           </span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text-primary)' }}>
+          <span className="connection-list__label">
             {conn.node.label}
           </span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+          <span className="connection-list__edge-type">
             {conn.edge.type}
           </span>
-        </div>
+        </button>
       ))}
     </div>
   )
 }
 
-export function PropertyRow({ label, value }: { label: string; value: unknown }) {
+export function PropertyRow({ label, value }: { label: string; value: string | number | null | undefined }) {
   if (value === null || value === undefined || value === '') return null
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="property-row">
       <div className="meta-label">{label}</div>
-      <div className="content-text" style={{ marginTop: 2 }}>{String(value)}</div>
+      <div className="content-text property-row__value">{String(value)}</div>
     </div>
   )
 }
-
-let editableFieldCounter = 0
 
 export function EditableField({ label, value, onChange, multiline, type }: {
   label: string
@@ -69,7 +49,7 @@ export function EditableField({ label, value, onChange, multiline, type }: {
   multiline?: boolean
   type?: string
 }) {
-  const [fieldId] = useState(() => `editable-field-${++editableFieldCounter}`)
+  const fieldId = useId()
   return (
     <div className="form-field">
       <label className="meta-label" htmlFor={fieldId}>{label}</label>

@@ -9,6 +9,7 @@
   --color-text-primary: #e8e0d0;
   --color-text-secondary: #a09880;
   --color-text-muted: #5a5448;
+  --color-text-label: #7a7468;
   --color-text-accent: #c4973a;
   --color-node-thinker: #c8b89a;
   --color-node-concept: #c4973a;
@@ -84,7 +85,7 @@ body::before {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #7a7468;
+  color: var(--color-text-label);
 }
 
 /* Content text */
@@ -110,6 +111,11 @@ body::before {
 }
 .btn:hover {
   border-color: var(--color-text-secondary);
+}
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: var(--color-border);
 }
 .btn:focus-visible {
   outline: 1px solid var(--color-text-accent);
@@ -204,9 +210,35 @@ body::before {
 .form-field {
   margin-bottom: 14px;
 }
-.form-field .meta-label {
-  margin-bottom: 4px;
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  gap: 6px;
 }
+.filter-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+.filter-btn:focus-visible {
+  outline: 1px solid var(--color-text-accent);
+  outline-offset: 2px;
+}
+.filter-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.filter-btn[data-type="THINKER"][aria-pressed="true"] { color: var(--color-node-thinker); border-color: var(--color-node-thinker); }
+.filter-btn[data-type="CONCEPT"][aria-pressed="true"] { color: var(--color-node-concept); border-color: var(--color-node-concept); }
+.filter-btn[data-type="CLAIM"][aria-pressed="true"]   { color: var(--color-node-claim);   border-color: var(--color-node-claim); }
+.filter-btn[data-type="TEXT"][aria-pressed="true"]    { color: var(--color-node-text);    border-color: var(--color-node-text); }
 
 /* Floating action button */
 .fab {
@@ -397,6 +429,32 @@ body::before {
   text-align: center;
 }
 
+/* Screen-reader only (visually hidden) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Inline error message (reusable) */
+.inline-error {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-node-claim);
+  margin-bottom: 8px;
+}
+
+/* Node search container */
+.node-search-container {
+  position: relative;
+}
+
 /* Node search dropdown (reusable) */
 .node-search-dropdown {
   position: absolute;
@@ -419,7 +477,8 @@ body::before {
   border-bottom: 1px solid var(--color-border);
   transition: background 150ms;
 }
-.node-search-dropdown-item:hover {
+.node-search-dropdown-item:hover,
+.node-search-dropdown-item.active {
   background: var(--color-bg-secondary);
 }
 
@@ -462,6 +521,117 @@ body::before {
 .context-menu__item:hover {
   background: var(--color-bg-secondary);
 }
+.context-menu__item:focus-visible {
+  outline: 1px solid var(--color-text-accent);
+  outline-offset: -1px;
+}
+
+/* Connection list */
+.connection-list {
+  margin-top: 20px;
+}
+
+.connection-list__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  width: 100%;
+  text-align: left;
+}
+
+.connection-list__label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+.connection-list__edge-type {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+/* Property row */
+.property-row {
+  margin-bottom: 12px;
+}
+
+.property-row__value {
+  margin-top: 2px;
+}
+
+/* Sidebar section */
+.sidebar-section {
+  margin-bottom: 24px;
+}
+
+.sidebar-section__heading {
+  margin-bottom: 10px;
+}
+
+.sidebar-divider {
+  border-top: 1px solid var(--color-border-strong);
+  margin-bottom: 20px;
+}
+
+.sidebar-text-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+  margin-top: 8px;
+}
+
+.sidebar-field-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sidebar-field-input {
+  margin-bottom: 8px;
+}
+
+/* Detail panel internals */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.panel-node-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.panel-node-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.panel-actions--view {
+  margin-top: 16px;
+}
+
+.panel-skeleton-block {
+  background: var(--color-border);
+}
 
 /* Reading mode layout */
 .reading-layout {
@@ -498,4 +668,142 @@ body::before {
   justify-content: space-between;
   padding: 12px 16px;
   background: linear-gradient(to bottom, var(--color-bg-primary), transparent);
+}
+
+/* Modal header (shared by AddNodeModal, AddEdgeModal) */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* Flex row utility — items centered, gap 12px */
+.flex-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Flex row with tiny gap for button groups */
+.btn-group {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+/* Form actions row (bottom of modal forms) */
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Form field pair (side-by-side fields like born/died year) */
+.form-field-pair {
+  display: flex;
+  gap: 12px;
+}
+.form-field-pair > * {
+  flex: 1;
+}
+
+/* Accent-colored button modifier */
+.btn--accent {
+  color: var(--color-text-accent);
+}
+
+/* Auto margin-left for right-aligned actions */
+.ml-auto {
+  margin-left: auto;
+}
+
+/* Search bar container */
+.search-bar {
+  width: 240px;
+}
+
+/* Search bar flash indicator */
+.search-bar__flash {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-accent);
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+}
+
+/* Edge source node display (read-only in AddEdgeModal) */
+.edge-source-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+.edge-source-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+/* Reading select (auto-width for text picker) */
+.select--auto {
+  width: auto;
+  min-width: 200px;
+}
+
+/* Status label (small muted text for loading indicators) */
+.meta-label--status {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+/* Spacing utilities */
+.mt-2 { margin-top: 8px; }
+.mb-3 { margin-bottom: 12px; }
+
+/* Textarea resize */
+.input--resizable {
+  resize: vertical;
+}
+
+/* Node search selected value display */
+.node-search-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.node-search-selected__label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+/* Node search empty state / match info */
+.node-search-info {
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.node-search-result__label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+.node-search-result__type {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

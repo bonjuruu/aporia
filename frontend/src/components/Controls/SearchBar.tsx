@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { NodeSearchInput } from '../Curation/NodeSearchInput'
 import type { SearchResult } from '../../types'
 
@@ -7,22 +7,31 @@ interface Props {
 }
 
 export function SearchBar({ onSelect }: Props) {
-  const [value, setValue] = useState<SearchResult | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const handleChange = useCallback((result: SearchResult | null) => {
     if (result) {
       onSelect(result.id)
+      clearTimeout(timerRef.current)
+      setFlash(result.label)
+      timerRef.current = setTimeout(() => setFlash(null), 800)
     }
-    setValue(null)
   }, [onSelect])
 
   return (
-    <div style={{ width: 240 }}>
-      <NodeSearchInput
-        value={value}
-        onChange={handleChange}
-        placeholder="SEARCH NODES..."
-      />
+    <div className="search-bar">
+      {flash ? (
+        <div className="input search-bar__flash">
+          → {flash}
+        </div>
+      ) : (
+        <NodeSearchInput
+          value={null}
+          onChange={handleChange}
+          placeholder="SEARCH NODES..."
+        />
+      )}
     </div>
   )
 }

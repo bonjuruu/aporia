@@ -1,6 +1,7 @@
-import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useId, useRef, useMemo } from 'react'
 import * as d3 from 'd3'
-import type { GraphData, GraphNode, GraphEdge } from '../../types'
+import type { GraphData, GraphNode, GraphEdge, NodeType } from '../../types'
+import { edgeEndpointId } from '../../types'
 
 const NODE_COLOR_VARS: Record<string, string> = {
   THINKER: '--color-node-thinker',
@@ -9,42 +10,49 @@ const NODE_COLOR_VARS: Record<string, string> = {
   TEXT:    '--color-node-text',
 }
 
+let cachedNodeColors: Record<string, string> | null = null
+
 function getNodeColors(): Record<string, string> {
+  if (cachedNodeColors) return cachedNodeColors
   const style = getComputedStyle(document.documentElement)
-  return Object.fromEntries(
+  cachedNodeColors = Object.fromEntries(
     Object.entries(NODE_COLOR_VARS).map(([type, varName]) => [type, style.getPropertyValue(varName).trim() || '#888'])
   )
+  return cachedNodeColors
 }
 
-function getNeighborIds(nodeId: string, edges: GraphEdge[]): Set<string> {
-  const neighbors = new Set<string>()
+/** Pre-compute a bidirectional adjacency map: nodeId → Set of neighbor nodeIds. */
+function buildAdjacencyMap(edges: GraphEdge[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>()
   for (const edge of edges) {
-    const sourceId = typeof edge.source === 'string' ? edge.source : edge.source.id
-    const targetId = typeof edge.target === 'string' ? edge.target : edge.target.id
-    if (sourceId === nodeId) neighbors.add(targetId)
-    if (targetId === nodeId) neighbors.add(sourceId)
+    const sourceId = edgeEndpointId(edge.source)
+    const targetId = edgeEndpointId(edge.target)
+    if (!map.has(sourceId)) map.set(sourceId, new Set())
+    if (!map.has(targetId)) map.set(targetId, new Set())
+    map.get(sourceId)!.add(targetId)
+    map.get(targetId)!.add(sourceId)
   }
-  return neighbors
-}
-
-function edgeNodeId(node: string | GraphNode): string {
-  return typeof node === 'string' ? node : node.id
+  return map
 }
 
 interface Props {
   data: GraphData
   selectedId: string | null
   onNodeClick: (node: GraphNode) => void
-  filterTypes?: Set<string>
+  filterTypes?: Set<NodeType>
   onContextMenu?: (e: React.MouseEvent) => void
 }
 
 export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onContextMenu }: Props) {
+  const reactId = useId()
+  const arrowId = `arrow-${reactId.replace(/:/g, '')}`
   const svgRef = useRef<SVGSVGElement>(null)
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphEdge> | null>(null)
   const colorsRef = useRef<Record<string, string>>({})
   const onNodeClickRef = useRef(onNodeClick)
   onNodeClickRef.current = onNodeClick
+  const filteredDataRef = useRef<GraphData>({ nodes: [], edges: [] })
+  const adjacencyRef = useRef<Map<string, Set<string>>>(new Map())
 
   const filteredData = useMemo<GraphData>(() => {
     const nodes = filterTypes && filterTypes.size > 0
@@ -54,10 +62,14 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
     // Clone edges and reset source/target to string IDs so forceLink
     // resolves them to the new node objects (not stale references)
     const edges = data.edges
-      .filter(e => nodeIds.has(edgeNodeId(e.source)) && nodeIds.has(edgeNodeId(e.target)))
-      .map(e => ({ ...e, source: edgeNodeId(e.source), target: edgeNodeId(e.target) }))
+      .filter(e => nodeIds.has(edgeEndpointId(e.source)) && nodeIds.has(edgeEndpointId(e.target)))
+      .map(e => ({ ...e, source: edgeEndpointId(e.source), target: edgeEndpointId(e.target) }))
     return { nodes, edges }
   }, [data, filterTypes])
+  filteredDataRef.current = filteredData
+
+  const adjacencyMap = useMemo(() => buildAdjacencyMap(filteredData.edges), [filteredData])
+  adjacencyRef.current = adjacencyMap
 
   // Initialize simulation once on mount
   useEffect(() => {
@@ -68,7 +80,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
 
     // Arrow marker
     svg.append('defs').append('marker')
-      .attr('id', 'arrow')
+      .attr('id', arrowId)
       .attr('viewBox', '0 -4 8 8')
       .attr('refX', 18)
       .attr('markerWidth', 6)
@@ -97,8 +109,11 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collision', d3.forceCollide(20))
 
-    return () => { simulationRef.current?.stop() }
-  }, [])
+    return () => {
+      simulationRef.current?.stop()
+      svg.on('.zoom', null)
+    }
+  }, [arrowId])
 
   // Resize handling
   useEffect(() => {
@@ -138,7 +153,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
     const edgesEnter = edgeSelection.enter().append('line')
       .attr('stroke', 'rgba(200,180,160,0.15)')
       .attr('stroke-width', 0.5)
-      .attr('marker-end', 'url(#arrow)')
+      .attr('marker-end', `url(#${arrowId})`)
 
     edgesEnter.append('title').text(d => d.type)
 
@@ -153,6 +168,9 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
 
     const nodesEnter = nodeSelection.enter().append('g')
       .attr('class', 'node')
+      .attr('tabindex', '0')
+      .attr('role', 'button')
+      .attr('aria-label', (d: GraphNode) => `${d.type} — ${d.label}`)
       .style('cursor', 'pointer')
 
     // Draw shape per node type (only for new nodes)
@@ -193,10 +211,9 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
         .text(d.label)
     })
 
-    const nodes = nodesEnter.merge(nodeSelection)
-
-    // Drag + click + hover on ALL nodes (merged selection, not just enter)
-    nodes.call(
+    // Bind drag + click + hover only on newly entered nodes.
+    // Handlers use refs so they always access current data without re-binding.
+    nodesEnter.call(
       d3.drag<SVGGElement, GraphNode>()
         .on('start', (event, d) => {
           if (!event.active) sim.alphaTarget(0.3).restart()
@@ -211,8 +228,14 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
         })
     )
     .on('click', (_, d) => onNodeClickRef.current(d))
+    .on('keydown', (event: KeyboardEvent, d) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        onNodeClickRef.current(d)
+      }
+    })
     .on('mouseover', (_, d) => {
-      const neighborIds = getNeighborIds(d.id, filteredData.edges)
+      const neighborIds = adjacencyRef.current.get(d.id) ?? new Set<string>()
       svg.selectAll<SVGGElement, GraphNode>('g.node')
         .style('opacity', n => n.id === d.id || neighborIds.has(n.id) ? 1 : 0.15)
       svg.selectAll<SVGLineElement, GraphEdge>('line')
@@ -225,10 +248,13 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
       svg.selectAll('line').style('opacity', 1)
     })
 
+    const nodes = nodesEnter.merge(nodeSelection)
+
     // Update simulation
     sim.nodes(filteredData.nodes)
     ;(sim.force('link') as d3.ForceLink<GraphNode, GraphEdge>).links(filteredData.edges)
 
+    sim.on('tick', null)
     sim.on('tick', () => {
       edges
         .attr('x1', d => (d.source as GraphNode).x ?? 0)
@@ -240,7 +266,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
     })
 
     sim.alpha(0.3).restart()
-  }, [filteredData])
+  }, [filteredData, arrowId])
 
   // Update selected ring without reheating simulation
   useEffect(() => {
@@ -254,10 +280,24 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
   }, [selectedId])
 
   return (
-    <svg
-      ref={svgRef}
-      style={{ width: '100%', height: '100%', background: 'var(--color-bg-primary)' }}
-      onContextMenu={onContextMenu}
-    />
+    <>
+      <svg
+        ref={svgRef}
+        role="img"
+        aria-label="Philosophy graph visualization"
+        style={{ width: '100%', height: '100%', background: 'var(--color-bg-primary)' }}
+        onContextMenu={onContextMenu}
+      />
+      {/* Screen-reader accessible node list — hidden visually */}
+      <ul className="sr-only" role="list" aria-label="Graph nodes">
+        {filteredData.nodes.map(node => (
+          <li key={node.id}>
+            <button onClick={() => onNodeClickRef.current(node)}>
+              {node.type}: {node.label}{node.year != null ? ` (${node.year})` : ''}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }

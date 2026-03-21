@@ -1,8 +1,9 @@
-import { useState, useEffect, useId } from 'react'
+import { useState, useEffect, useId, useCallback } from 'react'
 import { createNode } from '../../api/client'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
-import { nodeDetailLabel } from '../../types'
-import type { NodeType, GraphNode } from '../../types'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
+import { nodeDetailToGraphNode, NODE_TYPES } from '../../types'
+import type { NodeType, CreateNodeBody, GraphNode } from '../../types'
 
 interface Props {
   open: boolean
@@ -10,8 +11,6 @@ interface Props {
   onNodeCreated: (node: GraphNode) => void
   initialType?: NodeType | null
 }
-
-const NODE_TYPES: NodeType[] = ['THINKER', 'CONCEPT', 'CLAIM', 'TEXT']
 
 interface FormState {
   name: string
@@ -37,27 +36,43 @@ const EMPTY_FORM: FormState = {
   publishedYear: '',
 }
 
-function buildRequestBody(type: NodeType, form: FormState): Record<string, unknown> {
-  const body: Record<string, unknown> = { type }
+function optionalYear(value: string): number | undefined {
+  return value !== '' ? Number(value) : undefined
+}
 
-  if (type === 'THINKER' || type === 'CONCEPT') body.name = form.name
-  if (type === 'TEXT') body.title = form.title
-  if (type === 'CLAIM') body.content = form.content
-  if (form.description) body.description = form.description
-
-  if (type === 'THINKER') {
-    if (form.tradition) body.tradition = form.tradition
-    if (form.bornYear) body.bornYear = Number(form.bornYear)
-    if (form.diedYear) body.diedYear = Number(form.diedYear)
+function buildRequestBody(type: NodeType, form: FormState): CreateNodeBody {
+  switch (type) {
+    case 'THINKER':
+      return {
+        type,
+        name: form.name,
+        ...(form.description ? { description: form.description } : {}),
+        ...(form.tradition ? { tradition: form.tradition } : {}),
+        ...( form.bornYear !== '' ? { bornYear: optionalYear(form.bornYear) } : {}),
+        ...( form.diedYear !== '' ? { diedYear: optionalYear(form.diedYear) } : {}),
+      }
+    case 'CONCEPT':
+      return {
+        type,
+        name: form.name,
+        ...(form.description ? { description: form.description } : {}),
+        ...(form.year !== '' ? { year: optionalYear(form.year) } : {}),
+      }
+    case 'CLAIM':
+      return {
+        type,
+        content: form.content,
+        ...(form.description ? { description: form.description } : {}),
+        ...(form.year !== '' ? { year: optionalYear(form.year) } : {}),
+      }
+    case 'TEXT':
+      return {
+        type,
+        title: form.title,
+        ...(form.description ? { description: form.description } : {}),
+        ...(form.publishedYear !== '' ? { publishedYear: optionalYear(form.publishedYear) } : {}),
+      }
   }
-  if (type === 'CONCEPT' || type === 'CLAIM') {
-    if (form.year) body.year = Number(form.year)
-  }
-  if (type === 'TEXT') {
-    if (form.publishedYear) body.publishedYear = Number(form.publishedYear)
-  }
-
-  return body
 }
 
 export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Props) {
@@ -77,17 +92,18 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
     return `${fieldIdPrefix}-${name}`
   }
 
-  function reset() {
+  const reset = useCallback(() => {
     setSelectedType(null)
     setForm(EMPTY_FORM)
     setError(null)
     setSubmitting(false)
-  }
+  }, [])
 
-  function handleClose() {
+  const handleClose = useCallback(() => {
     reset()
     onClose()
-  }
+  }, [onClose, reset])
+  useEscapeKey(open, handleClose)
 
   function setField(field: keyof FormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -100,18 +116,7 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
 
     try {
       const detail = await createNode(buildRequestBody(selectedType, form))
-      const label = nodeDetailLabel(detail)
-      const yearByType = detail.type === 'THINKER' ? detail.properties.bornYear
-        : detail.type === 'TEXT' ? detail.properties.publishedYear
-        : detail.properties.year
-      const year = yearByType ?? null
-      const graphNode: GraphNode = {
-        id: detail.id,
-        label,
-        type: detail.type,
-        year: (year ?? null) as number | null,
-      }
-      onNodeCreated(graphNode)
+      onNodeCreated(nodeDetailToGraphNode(detail))
       handleClose()
     } catch (submitErr) {
       setError(submitErr instanceof Error ? submitErr.message : 'Failed to create node')
@@ -129,14 +134,12 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
         className="modal"
         role="dialog"
         aria-modal="true"
-        aria-label={selectedType ? `New ${selectedType}` : 'Create Node'}
+        aria-labelledby="add-node-modal-title"
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <span className="meta-label">{selectedType ? `New ${selectedType}` : 'Create Node'}</span>
-          <button className="btn" onClick={handleClose} style={{ padding: '4px 10px', fontSize: 11 }}>
-            CLOSE
-          </button>
+        <div className="modal-header">
+          <span id="add-node-modal-title" className="meta-label">{selectedType ? `New ${selectedType}` : 'Create Node'}</span>
+          <button className="btn btn--sm" onClick={handleClose}>CLOSE</button>
         </div>
 
         {!selectedType ? (
@@ -186,14 +189,13 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
               <div className="form-field">
                 <label className="meta-label" htmlFor={fieldId('content')}>Claim</label>
                 <textarea
-                  className="input"
+                  className="input input--resizable"
                   id={fieldId('content')}
                   value={form.content}
                   onChange={e => setField('content', e.target.value)}
                   required
                   autoFocus
                   rows={3}
-                  style={{ resize: 'vertical' }}
                 />
               </div>
             )}
@@ -201,12 +203,11 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
             <div className="form-field">
               <label className="meta-label" htmlFor={fieldId('description')}>Description</label>
               <textarea
-                className="input"
+                className="input input--resizable"
                 id={fieldId('description')}
                 value={form.description}
                 onChange={e => setField('description', e.target.value)}
                 rows={3}
-                style={{ resize: 'vertical' }}
               />
             </div>
 
@@ -223,8 +224,8 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
             )}
 
             {selectedType === 'THINKER' && (
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div className="form-field" style={{ flex: 1 }}>
+              <div className="form-field-pair">
+                <div className="form-field">
                   <label className="meta-label" htmlFor={fieldId('bornYear')}>Born Year</label>
                   <input
                     className="input"
@@ -234,7 +235,7 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
                     onChange={e => setField('bornYear', e.target.value)}
                   />
                 </div>
-                <div className="form-field" style={{ flex: 1 }}>
+                <div className="form-field">
                   <label className="meta-label" htmlFor={fieldId('diedYear')}>Died Year</label>
                   <input
                     className="input"
@@ -274,30 +275,21 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
             )}
 
             {error && (
-              <div style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 11,
-                color: 'var(--color-node-claim)',
-                marginBottom: 12,
-              }}>
-                {error}
-              </div>
+              <div className="inline-error mb-3" role="alert">{error}</div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <div className="form-actions">
               <button
-                className="btn"
+                className="btn btn--sm"
                 type="button"
                 onClick={() => { setSelectedType(null); setForm(EMPTY_FORM); setError(null) }}
-                style={{ fontSize: 11 }}
               >
                 BACK
               </button>
               <button
-                className="btn"
+                className="btn btn--sm btn--accent ml-auto"
                 type="submit"
                 disabled={submitting}
-                style={{ fontSize: 11, marginLeft: 'auto', color: 'var(--color-text-accent)' }}
               >
                 {submitting ? 'CREATING...' : 'CREATE'}
               </button>

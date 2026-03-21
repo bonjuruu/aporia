@@ -1,21 +1,17 @@
-import { useState, useId } from 'react'
+import { useState, useId, useCallback } from 'react'
 import { createEdge } from '../../api/client'
 import { NodeSearchInput } from './NodeSearchInput'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
-import { isEdgeType } from '../../types'
-import type { EdgeType, GraphEdge, SearchResult } from '../../types'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
+import { isEdgeType, EDGE_TYPES } from '../../types'
+import type { EdgeType, NodeType, GraphEdge, SearchResult } from '../../types'
 
 interface Props {
   open: boolean
   onClose: () => void
   onEdgeCreated: (edge: GraphEdge) => void
-  sourceNode?: { id: string; label: string; type: string } | null
+  sourceNode?: { id: string; label: string; type: NodeType } | null
 }
-
-const EDGE_TYPES: EdgeType[] = [
-  'INFLUENCED', 'COINED', 'WROTE', 'ARGUES', 'APPEARS_IN',
-  'REFUTES', 'SUPPORTS', 'QUALIFIES', 'BUILDS_ON', 'DERIVES_FROM', 'RESPONDS_TO',
-]
 
 export function AddEdgeModal({ open, onClose, onEdgeCreated, sourceNode }: Props) {
   const [edgeType, setEdgeType] = useState<EdgeType>('INFLUENCED')
@@ -31,19 +27,20 @@ export function AddEdgeModal({ open, onClose, onEdgeCreated, sourceNode }: Props
     return `${fieldIdPrefix}-${name}`
   }
 
-  function reset() {
+  const reset = useCallback(() => {
     setEdgeType('INFLUENCED')
     setTarget(null)
     setDescription('')
     setSourceText(null)
     setError(null)
     setSubmitting(false)
-  }
+  }, [])
 
-  function handleClose() {
+  const handleClose = useCallback(() => {
     reset()
     onClose()
-  }
+  }, [onClose, reset])
+  useEscapeKey(open, handleClose)
 
   async function handleSubmit() {
     if (!sourceNode || !target) return
@@ -76,25 +73,21 @@ export function AddEdgeModal({ open, onClose, onEdgeCreated, sourceNode }: Props
         className="modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Create Edge"
+        aria-labelledby="add-edge-modal-title"
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <span className="meta-label">Create Edge</span>
-          <button className="btn" onClick={handleClose} style={{ padding: '4px 10px', fontSize: 11 }}>
-            CLOSE
-          </button>
+        <div className="modal-header">
+          <span id="add-edge-modal-title" className="meta-label">Create Edge</span>
+          <button className="btn btn--sm" onClick={handleClose}>CLOSE</button>
         </div>
 
         <form onSubmit={e => { e.preventDefault(); handleSubmit() }}>
           {/* Source (read-only) */}
           <div className="form-field">
             <div className="meta-label">From</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+            <div className="edge-source-display">
               <span className="node-badge" data-type={sourceNode.type}>{sourceNode.type}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-text-primary)' }}>
-                {sourceNode.label}
-              </span>
+              <span className="edge-source-label">{sourceNode.label}</span>
             </div>
           </div>
 
@@ -150,22 +143,14 @@ export function AddEdgeModal({ open, onClose, onEdgeCreated, sourceNode }: Props
           </div>
 
           {error && (
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              color: 'var(--color-node-claim)',
-              marginBottom: 12,
-            }}>
-              {error}
-            </div>
+            <div className="inline-error mb-3" role="alert">{error}</div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
             <button
-              className="btn"
+              className="btn btn--sm btn--accent"
               type="submit"
               disabled={submitting || !target}
-              style={{ fontSize: 11, color: 'var(--color-text-accent)' }}
             >
               {submitting ? 'CREATING...' : 'CREATE'}
             </button>

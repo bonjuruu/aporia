@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { createNode, createEdge } from '../../api/client'
 import { NodeSearchInput } from '../Curation/NodeSearchInput'
-import { nodeDetailLabel } from '../../types'
-import type { GraphNode, GraphEdge, NodeType, EdgeType, SearchResult } from '../../types'
+import { nodeDetailToGraphNode, isEdgeType } from '../../types'
+import type { GraphNode, GraphEdge, NodeType, EdgeType, SearchResult, CreateNodeBody } from '../../types'
 
 interface Props {
   textId: string
@@ -19,15 +19,25 @@ const QUICK_ADD_TYPES: { value: NodeType; label: string }[] = [
   { value: 'THINKER', label: 'Thinker' },
 ]
 
-// Edge types where the linked node points TO the text (node → text)
-const EDGE_TYPES_INTO_TEXT: EdgeType[] = [
-  'APPEARS_IN', 'ARGUES', 'COINED', 'WROTE',
-]
-// Edge types where direction is between the linked node and something else
-const EDGE_TYPES_FROM_NODE: EdgeType[] = [
-  'INFLUENCED', 'REFUTES', 'SUPPORTS', 'QUALIFIES', 'BUILDS_ON', 'DERIVES_FROM', 'RESPONDS_TO',
-]
-const ALL_EDGE_TYPES: EdgeType[] = [...EDGE_TYPES_INTO_TEXT, ...EDGE_TYPES_FROM_NODE]
+// Exhaustive mapping: every EdgeType must be classified as 'into_text' or 'from_node'.
+// Adding a new EdgeType to the EDGE_TYPES const without adding it here causes a compile error.
+const EDGE_DIRECTION: Record<EdgeType, 'into_text' | 'from_node'> = {
+  APPEARS_IN:   'into_text',
+  ARGUES:       'into_text',
+  COINED:       'into_text',
+  WROTE:        'into_text',
+  INFLUENCED:   'from_node',
+  REFUTES:      'from_node',
+  SUPPORTS:     'from_node',
+  QUALIFIES:    'from_node',
+  BUILDS_ON:    'from_node',
+  DERIVES_FROM: 'from_node',
+  RESPONDS_TO:  'from_node',
+}
+const EDGE_TYPES_INTO_TEXT = new Set(
+  (Object.keys(EDGE_DIRECTION) as EdgeType[]).filter(k => EDGE_DIRECTION[k] === 'into_text')
+)
+const ALL_EDGE_TYPES = Object.keys(EDGE_DIRECTION) as EdgeType[]
 
 export function ReadingSidebar({ textId, textTitle, textYear, textDescription, onNodeCreated, onEdgeCreated }: Props) {
   const [addType, setAddType] = useState<NodeType>('CONCEPT')
@@ -42,22 +52,31 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
   const [edgeError, setEdgeError] = useState<string | null>(null)
 
   async function handleCreateNode() {
-    if (!addName.trim()) return
+    if (!addName.trim() || creating) return
     setCreating(true)
     setCreateError(null)
     try {
-      const body: Record<string, unknown> = {
-        type: addType,
-        ...(addType === 'CLAIM' ? { content: addName } : { name: addName }),
-        ...(addDescription ? { description: addDescription } : {}),
-      }
+      const base = addDescription ? { description: addDescription } : {}
+      const body: CreateNodeBody = addType === 'CLAIM'
+        ? { type: 'CLAIM', content: addName, ...base }
+        : addType === 'CONCEPT'
+          ? { type: 'CONCEPT', name: addName, ...base }
+          : { type: 'THINKER', name: addName, ...base }
       const detail = await createNode(body)
-      const node: GraphNode = {
-        id: detail.id,
-        label: nodeDetailLabel(detail),
-        type: detail.type,
+      onNodeCreated(nodeDetailToGraphNode(detail))
+      // Auto-link the new node to the current text with a type-appropriate edge
+      const autoEdgeType: EdgeType = addType === 'THINKER' ? 'WROTE' : 'APPEARS_IN'
+      try {
+        const edge = await createEdge({
+          source: detail.id,
+          target: textId,
+          type: autoEdgeType,
+          sourceTextId: textId,
+        })
+        onEdgeCreated(edge)
+      } catch (linkErr) {
+        setCreateError(`Node created, but failed to link: ${linkErr instanceof Error ? linkErr.message : 'Unknown error'}`)
       }
-      onNodeCreated(node)
       setAddName('')
       setAddDescription('')
     } catch (createNodeErr) {
@@ -68,13 +87,14 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
   }
 
   async function handleLinkEdge() {
+    if (linkingEdge) return
+    setEdgeError(null)
     if (!edgeTarget) return
     setLinkingEdge(true)
-    setEdgeError(null)
     try {
       // For "into text" edge types, the linked node is the source and this text is the target.
       // For other types, the linked node is the target (e.g. this text INFLUENCED the node).
-      const intoText = (EDGE_TYPES_INTO_TEXT as string[]).includes(edgeType)
+      const intoText = EDGE_TYPES_INTO_TEXT.has(edgeType)
       const edge = await createEdge({
         source: intoText ? edgeTarget.id : textId,
         target: intoText ? textId : edgeTarget.id,
@@ -93,33 +113,27 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
   return (
     <div className="reading-sidebar">
       {/* Text metadata */}
-      <div style={{ marginBottom: 24 }}>
-        <span className="node-badge" data-type="TEXT" style={{ marginBottom: 8, display: 'inline-block' }}>TEXT</span>
-        <h2 style={{
-          fontFamily: 'var(--font-serif)',
-          fontSize: 22,
-          fontWeight: 400,
-          color: 'var(--color-text-primary)',
-          marginTop: 8,
-        }}>
+      <div className="sidebar-section">
+        <span className="node-badge" data-type="TEXT">TEXT</span>
+        <h2 className="sidebar-text-title">
           {textTitle}
         </h2>
         {textYear != null && (
-          <div className="meta-label" style={{ marginTop: 8 }}>{textYear}</div>
+          <div className="meta-label mt-2">{textYear}</div>
         )}
         {textDescription && (
-          <div className="content-text" style={{ marginTop: 8 }}>{textDescription}</div>
+          <div className="content-text mt-2">{textDescription}</div>
         )}
       </div>
 
       {/* Divider */}
-      <div style={{ borderTop: '1px solid var(--color-border-strong)', marginBottom: 20 }} />
+      <div className="sidebar-divider" />
 
       {/* Quick add node */}
-      <div style={{ marginBottom: 24 }}>
-        <div className="meta-label" style={{ marginBottom: 10 }}>Quick Add Node</div>
+      <div className="sidebar-section">
+        <div className="meta-label sidebar-section__heading">Quick Add Node</div>
 
-        <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+        <div className="btn-group">
           {QUICK_ADD_TYPES.map(t => (
             <button
               key={t.value}
@@ -135,25 +149,29 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
           ))}
         </div>
 
+        <label className="meta-label sidebar-field-label" htmlFor="sidebar-add-name">
+          {addType === 'CLAIM' ? 'Content' : 'Name'}
+        </label>
         <input
-          className="input"
+          id="sidebar-add-name"
+          className="input sidebar-field-input"
           placeholder={addType === 'CLAIM' ? 'Claim content...' : 'Name...'}
           value={addName}
           onChange={e => setAddName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleCreateNode()}
-          style={{ marginBottom: 8 }}
         />
+        <label className="meta-label sidebar-field-label" htmlFor="sidebar-add-desc">
+          Description
+        </label>
         <input
-          className="input"
+          id="sidebar-add-desc"
+          className="input sidebar-field-input"
           placeholder="Description (optional)"
           value={addDescription}
           onChange={e => setAddDescription(e.target.value)}
-          style={{ marginBottom: 8 }}
         />
         {createError && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-node-claim)', marginBottom: 8 }}>
-            {createError}
-          </div>
+          <div className="inline-error" role="alert">{createError}</div>
         )}
         <button className="btn btn--full" onClick={handleCreateNode} disabled={creating || !addName.trim()}>
           {creating ? 'CREATING...' : 'CREATE NODE'}
@@ -161,25 +179,32 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
       </div>
 
       {/* Divider */}
-      <div style={{ borderTop: '1px solid var(--color-border-strong)', marginBottom: 20 }} />
+      <div className="sidebar-divider" />
 
       {/* Quick link edge to this text */}
       <div>
-        <div className="meta-label" style={{ marginBottom: 10 }}>Link Node to This Text</div>
+        <div className="meta-label sidebar-section__heading">Link Node to This Text</div>
 
-        <div style={{ marginBottom: 8 }}>
+        <label className="meta-label sidebar-field-label" htmlFor="sidebar-edge-target">
+          Target Node
+        </label>
+        <div className="sidebar-field-input">
           <NodeSearchInput
+            id="sidebar-edge-target"
             value={edgeTarget}
             onChange={setEdgeTarget}
             placeholder="Search for node..."
           />
         </div>
 
+        <label className="meta-label sidebar-field-label" htmlFor="sidebar-edge-type">
+          Edge Type
+        </label>
         <select
-          className="select"
+          id="sidebar-edge-type"
+          className="select sidebar-field-input"
           value={edgeType}
-          onChange={e => setEdgeType(e.target.value as EdgeType)}
-          style={{ marginBottom: 8 }}
+          onChange={e => { if (isEdgeType(e.target.value)) setEdgeType(e.target.value) }}
         >
           {ALL_EDGE_TYPES.map(t => (
             <option key={t} value={t}>{t}</option>
@@ -187,9 +212,7 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
         </select>
 
         {edgeError && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--color-node-claim)', marginBottom: 8 }}>
-            {edgeError}
-          </div>
+          <div className="inline-error" role="alert">{edgeError}</div>
         )}
         <button className="btn btn--full" onClick={handleLinkEdge} disabled={linkingEdge || !edgeTarget}>
           {linkingEdge ? 'LINKING...' : 'LINK EDGE'}

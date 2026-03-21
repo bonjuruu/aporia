@@ -46,6 +46,8 @@ export function ContextMenu({ x, y, onSelect, onClose }: Props) {
       <div
         ref={menuRef}
         className="context-menu"
+        role="menu"
+        aria-label="Add node"
         style={{ left: pos.left, top: pos.top }}
         onMouseDown={e => e.stopPropagation()}
         onContextMenu={e => e.stopPropagation()}
@@ -55,6 +57,7 @@ export function ContextMenu({ x, y, onSelect, onClose }: Props) {
           <button
             key={t.value}
             className="context-menu__item"
+            role="menuitem"
             data-type={t.value}
             onClick={() => onSelect(t.value)}
           >

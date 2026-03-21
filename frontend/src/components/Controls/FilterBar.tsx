@@ -1,43 +1,53 @@
+import { useState, useRef, useCallback } from 'react'
+import { NODE_TYPES } from '../../types'
 import type { NodeType } from '../../types'
 
-const NODE_TYPES: { type: NodeType; color: string }[] = [
-  { type: 'THINKER', color: 'var(--color-node-thinker)' },
-  { type: 'CONCEPT', color: 'var(--color-node-concept)' },
-  { type: 'CLAIM', color: 'var(--color-node-claim)' },
-  { type: 'TEXT', color: 'var(--color-node-text)' },
-]
-
 interface Props {
-  activeTypes: Set<string>
-  onToggle: (type: string) => void
+  activeTypes: Set<NodeType>
+  onToggle: (type: NodeType) => void
 }
 
 export function FilterBar({ activeTypes, onToggle }: Props) {
+  const [focusedIndex, setFocusedIndex] = useState(0)
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    let nextIndex: number | null = null
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      nextIndex = (focusedIndex + 1) % NODE_TYPES.length
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      nextIndex = (focusedIndex - 1 + NODE_TYPES.length) % NODE_TYPES.length
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      nextIndex = 0
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      nextIndex = NODE_TYPES.length - 1
+    }
+    if (nextIndex !== null) {
+      setFocusedIndex(nextIndex)
+      buttonRefs.current[nextIndex]?.focus()
+    }
+  }, [focusedIndex])
+
   return (
-    <div style={{ display: 'flex', gap: 6 }}>
-      {NODE_TYPES.map(({ type, color }) => {
-        const active = activeTypes.has(type)
-        return (
-          <button
-            key={type}
-            onClick={() => onToggle(type)}
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              padding: '4px 10px',
-              border: `1px solid ${active ? color : 'var(--color-border)'}`,
-              background: active ? `color-mix(in srgb, ${color} 8%, transparent)` : 'transparent',
-              color: active ? color : 'var(--color-text-muted)',
-              cursor: 'pointer',
-              transition: 'all 150ms ease-out',
-            }}
-          >
-            {type}
-          </button>
-        )
-      })}
+    <div role="toolbar" aria-label="Filter node types" className="filter-bar" onKeyDown={handleKeyDown}>
+      {NODE_TYPES.map((type, index) => (
+        <button
+          key={type}
+          ref={el => { buttonRefs.current[index] = el }}
+          className="filter-btn"
+          data-type={type}
+          tabIndex={index === focusedIndex ? 0 : -1}
+          aria-pressed={activeTypes.has(type)}
+          onClick={() => onToggle(type)}
+          onFocus={() => setFocusedIndex(index)}
+        >
+          {type}
+        </button>
+      ))}
     </div>
   )
 }

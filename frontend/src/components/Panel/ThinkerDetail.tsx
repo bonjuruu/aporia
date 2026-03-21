@@ -1,28 +1,28 @@
 import { EditableField, PropertyRow } from './shared'
-import type { ThinkerProperties } from '../../types'
+import type { ThinkerProperties, ThinkerEditForm } from '../../types'
 
 interface Props {
   properties: ThinkerProperties
   editing: boolean
-  form: Record<string, string>
-  onFieldChange: (field: string, value: string) => void
+  form: ThinkerEditForm
+  onFieldChange: (field: keyof ThinkerEditForm, value: string) => void
 }
 
 export function ThinkerDetail({ properties, editing, form, onFieldChange }: Props) {
   if (editing) {
     return (
       <>
-        <EditableField label="Name" value={form.name ?? ''} onChange={v => onFieldChange('name', v)} />
+        <EditableField label="Name" value={form.name} onChange={v => onFieldChange('name', v)} />
         <div style={{ display: 'flex', gap: 12 }}>
           <div style={{ flex: 1 }}>
-            <EditableField label="Born" value={form.bornYear ?? ''} onChange={v => onFieldChange('bornYear', v)} type="number" />
+            <EditableField label="Born" value={form.bornYear} onChange={v => onFieldChange('bornYear', v)} type="number" />
           </div>
           <div style={{ flex: 1 }}>
-            <EditableField label="Died" value={form.diedYear ?? ''} onChange={v => onFieldChange('diedYear', v)} type="number" />
+            <EditableField label="Died" value={form.diedYear} onChange={v => onFieldChange('diedYear', v)} type="number" />
           </div>
         </div>
-        <EditableField label="Tradition" value={form.tradition ?? ''} onChange={v => onFieldChange('tradition', v)} />
-        <EditableField label="Description" value={form.description ?? ''} onChange={v => onFieldChange('description', v)} multiline />
+        <EditableField label="Tradition" value={form.tradition} onChange={v => onFieldChange('tradition', v)} />
+        <EditableField label="Description" value={form.description} onChange={v => onFieldChange('description', v)} multiline />
       </>
     )
   }

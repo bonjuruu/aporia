@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchSubgraph, fetchGraph, fetchNode } from '../../api/client'
+import { fetchSubgraph, fetchNodesByType, fetchNode } from '../../api/client'
 import { GraphCanvas } from '../Graph/GraphCanvas'
 import { DetailPanel } from '../Panel/DetailPanel'
 import { ReadingSidebar } from './ReadingSidebar'
@@ -28,34 +28,43 @@ export function ReadingView({ onLogout }: Props) {
   // Derive loading: unsettled whenever fetch key differs
   const loading = settledKey !== fetchKey
 
-  // Fetch subgraph + text detail + all texts for dropdown
+  // Fetch text list once on mount (not on every refetch)
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchNodesByType('TEXT', controller.signal)
+      .then(textList => {
+        if (!controller.signal.aborted) setAllTexts(textList)
+      })
+      .catch(() => { /* text list is non-critical — dropdown will be empty */ })
+    return () => controller.abort()
+  }, [])
+
+  // Fetch subgraph + text detail (re-runs on id change or refetch)
   useEffect(() => {
     if (!id) return
-    let cancelled = false
+    const controller = new AbortController()
     const key = fetchKey
 
     Promise.all([
-      fetchSubgraph(id),
-      fetchNode(id),
-      fetchGraph(),
+      fetchSubgraph(id, controller.signal),
+      fetchNode(id, controller.signal),
     ])
-      .then(([subgraph, detail, fullGraph]) => {
-        if (cancelled) return
+      .then(([subgraph, detail]) => {
+        if (controller.signal.aborted) return
         setSubgraphData(subgraph)
         setTextDetail(detail)
-        setAllTexts(fullGraph.nodes.filter(n => n.type === 'TEXT'))
         setError(null)
       })
       .catch(fetchErr => {
-        if (cancelled) return
+        if (controller.signal.aborted) return
         setError(fetchErr instanceof Error ? fetchErr.message : 'Failed to load reading view')
       })
       .finally(() => {
-        if (!cancelled) setSettledKey(key)
+        if (!controller.signal.aborted) setSettledKey(key)
       })
 
-    return () => { cancelled = true }
-  }, [fetchKey, id])
+    return () => controller.abort()
+  }, [id, fetchKey])
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedId(node.id)
@@ -93,7 +102,17 @@ export function ReadingView({ onLogout }: Props) {
     return textDetail.properties as TextProperties
   }, [textDetail])
 
-  if (loading) {
+  const initialLoad = loading && !textDetail
+
+  if (!id) {
+    return (
+      <div className="centered-screen" style={{ color: 'var(--color-node-claim)' }}>
+        ERROR: No text ID provided
+      </div>
+    )
+  }
+
+  if (initialLoad) {
     return (
       <div className="centered-screen" style={{ color: 'var(--color-text-muted)' }}>
         LOADING TEXT...
@@ -101,10 +120,13 @@ export function ReadingView({ onLogout }: Props) {
     )
   }
 
-  if (error) {
+  if (error && !textDetail) {
     return (
       <div className="centered-screen" style={{ color: 'var(--color-node-claim)' }}>
-        ERROR: {error}
+        <div>ERROR: {error}</div>
+        <button className="btn" onClick={handleRefetch} style={{ fontSize: 11, marginTop: 12 }}>
+          RETRY
+        </button>
       </div>
     )
   }
@@ -113,7 +135,7 @@ export function ReadingView({ onLogout }: Props) {
     <div className="reading-layout">
       {/* Sidebar */}
       <ReadingSidebar
-        textId={id!}
+        textId={id}
         textTitle={textProperties?.title ?? 'Unknown Text'}
         textYear={textProperties?.publishedYear}
         textDescription={textProperties?.description}
@@ -125,7 +147,7 @@ export function ReadingView({ onLogout }: Props) {
       <div className="reading-main">
         {/* Top bar */}
         <div className="reading-top-bar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="flex-row">
             <button
               className="btn btn--sm"
               onClick={() => navigate('/')}
@@ -133,15 +155,20 @@ export function ReadingView({ onLogout }: Props) {
               BACK
             </button>
             <span className="meta-label">Reading Mode</span>
+            {loading && <span className="meta-label meta-label--status">REFRESHING...</span>}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="flex-row">
+            <label htmlFor="reading-text-select" className="sr-only">Select text</label>
             <select
-              className="select"
+              id="reading-text-select"
+              className="select select--auto"
               value={id}
               onChange={e => handleNavigateToText(e.target.value)}
-              style={{ width: 'auto', minWidth: 200 }}
             >
+              {allTexts.length === 0 && (
+                <option value={id}>{textProperties?.title ?? id}</option>
+              )}
               {allTexts.map(text => (
                 <option key={text.id} value={text.id}>{text.label}</option>
               ))}
