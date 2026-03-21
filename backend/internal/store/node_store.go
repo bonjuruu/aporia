@@ -42,7 +42,7 @@ func (s *nodeStore) GetAll(ctx context.Context) ([]response.GraphNode, error) {
 		WHERE n:Thinker OR n:Concept OR n:Claim OR n:Text
 		RETURN n.id as id,
 			coalesce(n.name, n.title, n.content) as label,
-			labels(n)[0] as type,
+			toUpper(labels(n)[0]) as type,
 			coalesce(n.born_year, n.published_year, n.year) as year
 	`, nil)
 	if collectErr != nil {
@@ -69,13 +69,13 @@ func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetai
 		WHERE n:Thinker OR n:Concept OR n:Claim OR n:Text
 		OPTIONAL MATCH (n)-[r]->(out)
 		WHERE out:Thinker OR out:Concept OR out:Claim OR out:Text
-		WITH n, collect(DISTINCT {edge_id: r.id, edge_type: type(r), edge_desc: r.description, edge_source_text: r.source_text_id, target_id: out.id, target_label: coalesce(out.name, out.title, out.content), target_type: labels(out)[0], target_year: coalesce(out.born_year, out.published_year, out.year)}) as outgoing
+		WITH n, collect(DISTINCT {edge_id: r.id, edge_type: type(r), edge_desc: r.description, edge_source_text: r.source_text_id, target_id: out.id, target_label: coalesce(out.name, out.title, out.content), target_type: toUpper(labels(out)[0]), target_year: coalesce(out.born_year, out.published_year, out.year)}) as outgoing
 		OPTIONAL MATCH (in_node)-[in_r]->(n)
 		WHERE in_node:Thinker OR in_node:Concept OR in_node:Claim OR in_node:Text
 		RETURN n,
-			labels(n)[0] as type,
+			toUpper(labels(n)[0]) as type,
 			outgoing,
-			collect(DISTINCT {edge_id: in_r.id, edge_type: type(in_r), edge_desc: in_r.description, edge_source_text: in_r.source_text_id, source_id: in_node.id, source_label: coalesce(in_node.name, in_node.title, in_node.content), source_type: labels(in_node)[0], source_year: coalesce(in_node.born_year, in_node.published_year, in_node.year)}) as incoming
+			collect(DISTINCT {edge_id: in_r.id, edge_type: type(in_r), edge_desc: in_r.description, edge_source_text: in_r.source_text_id, source_id: in_node.id, source_label: coalesce(in_node.name, in_node.title, in_node.content), source_type: toUpper(labels(in_node)[0]), source_year: coalesce(in_node.born_year, in_node.published_year, in_node.year)}) as incoming
 	`, map[string]any{"id": id})
 	if singleErr != nil {
 		return nil, fmt.Errorf("failed to get node by id: %w", singleErr)
@@ -438,7 +438,7 @@ func (s *nodeStore) Search(ctx context.Context, query string) ([]response.GraphN
 		YIELD node as n, score
 		RETURN n.id as id,
 			coalesce(n.name, n.title, n.content) as label,
-			labels(n)[0] as type,
+			toUpper(labels(n)[0]) as type,
 			coalesce(n.born_year, n.published_year, n.year) as year
 		LIMIT 20
 	`, map[string]any{"query": query})
