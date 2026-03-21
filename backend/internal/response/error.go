@@ -18,10 +18,6 @@ type StatusResponse struct {
 	Status string `json:"status"`
 }
 
-type TokenResponse struct {
-	Token string `json:"token"`
-}
-
 func Abort(c *gin.Context, status int, message string) {
 	c.AbortWithStatusJSON(status, ErrorResponse{Status: status, Error: message})
 }

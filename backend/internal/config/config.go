@@ -8,6 +8,8 @@ type EnvConfig struct {
 	Neo4jPassword string `env:"NEO4J_PASSWORD"  envDefault:"password"`
 	Port          string `env:"PORT"            envDefault:"8080"`
 	JWTSecret     string `env:"JWT_SECRET"      envDefault:"aporia-dev-secret-change-in-production"`
+	CookieSecure  bool   `env:"COOKIE_SECURE"   envDefault:"false"`
+	AllowOrigin   string `env:"ALLOW_ORIGIN"    envDefault:"http://localhost:5173"`
 }
 
 func LoadEnv() (EnvConfig, error) {

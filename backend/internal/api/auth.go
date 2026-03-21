@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/bonjuruu/aporia/internal/middleware"
 	"github.com/bonjuruu/aporia/internal/request"
 	"github.com/bonjuruu/aporia/internal/response"
 	"github.com/bonjuruu/aporia/internal/service"
@@ -12,12 +13,14 @@ import (
 type AuthHandler struct {
 	authService       *service.AuthService
 	annotationService *service.AnnotationService
+	cookieConfig      middleware.CookieConfig
 }
 
-func NewAuthHandler(authService *service.AuthService, annotationService *service.AnnotationService) *AuthHandler {
+func NewAuthHandler(authService *service.AuthService, annotationService *service.AnnotationService, cookieConfig middleware.CookieConfig) *AuthHandler {
 	return &AuthHandler{
 		authService:       authService,
 		annotationService: annotationService,
+		cookieConfig:      cookieConfig,
 	}
 }
 
@@ -34,7 +37,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, response.TokenResponse{Token: token})
+	middleware.SetAuthCookie(c, token, h.cookieConfig)
+	response.RespondStatus(c, http.StatusCreated, "registered")
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -50,7 +54,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, response.TokenResponse{Token: token})
+	middleware.SetAuthCookie(c, token, h.cookieConfig)
+	response.RespondStatus(c, http.StatusOK, "authenticated")
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+	middleware.ClearAuthCookie(c, h.cookieConfig)
+	response.RespondStatus(c, http.StatusOK, "logged out")
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {

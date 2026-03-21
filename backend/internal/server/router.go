@@ -27,12 +27,13 @@ const swaggerHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-func NewRouter(h Handlers, jwtSecret []byte) *gin.Engine {
+func NewRouter(h Handlers, jwtSecret []byte, allowOrigin string) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:5173"},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Content-Type", "Authorization"},
+		AllowOrigins:     []string{allowOrigin},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", middleware.CSRFHeaderName},
+		AllowCredentials: true,
 	}))
 
 	r.StaticFile("/api/docs/openapi.yaml", "./api/openapi.yaml")
@@ -47,8 +48,10 @@ func NewRouter(h Handlers, jwtSecret []byte) *gin.Engine {
 
 	protected := r.Group("/api")
 	protected.Use(middleware.Auth(jwtSecret))
+	protected.Use(middleware.CSRF())
 	{
 		protected.GET("/auth/me", h.Auth.GetMe)
+		protected.POST("/auth/logout", h.Auth.Logout)
 
 		protected.GET("/graph", h.Graph.GetFullGraph)
 		protected.GET("/graph/subgraph/:textId", h.Graph.GetSubgraph)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/bonjuruu/aporia/internal/config"
 	"github.com/bonjuruu/aporia/internal/db"
+	"github.com/bonjuruu/aporia/internal/middleware"
 	"github.com/bonjuruu/aporia/internal/server"
 )
 
@@ -38,8 +39,9 @@ func main() {
 	}
 
 	jwtSecret := []byte(cfg.JWTSecret)
-	handlers := server.WireHandlers(driver, jwtSecret)
-	r := server.NewRouter(handlers, jwtSecret)
+	cookieConfig := middleware.CookieConfig{Secure: cfg.CookieSecure}
+	handlers := server.WireHandlers(driver, jwtSecret, cookieConfig)
+	r := server.NewRouter(handlers, jwtSecret, cfg.AllowOrigin)
 
 	slog.Info("starting server", "port", cfg.Port)
 	if runErr := r.Run(":" + cfg.Port); runErr != nil {

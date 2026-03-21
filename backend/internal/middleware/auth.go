@@ -12,13 +12,26 @@ import (
 
 func Auth(jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		if header == "" || !strings.HasPrefix(header, "Bearer ") {
+		var tokenStr string
+
+		// Primary: read from httpOnly cookie
+		if cookie, cookieErr := c.Cookie(AuthCookieName); cookieErr == nil && cookie != "" {
+			tokenStr = cookie
+		}
+
+		// Fallback: Authorization header (Swagger UI, API clients, tests)
+		if tokenStr == "" {
+			header := c.GetHeader("Authorization")
+			if strings.HasPrefix(header, "Bearer ") {
+				tokenStr = strings.TrimPrefix(header, "Bearer ")
+			}
+		}
+
+		if tokenStr == "" {
 			response.Abort(c, http.StatusUnauthorized, "missing token")
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(header, "Bearer ")
 		token, parseErr := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("unexpected signing method")

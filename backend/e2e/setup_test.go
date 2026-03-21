@@ -13,6 +13,7 @@ import (
 
 	"github.com/bonjuruu/aporia/internal/db"
 	"github.com/bonjuruu/aporia/internal/kit/neo4j_kit"
+	"github.com/bonjuruu/aporia/internal/middleware"
 	"github.com/bonjuruu/aporia/internal/server"
 	"github.com/gin-gonic/gin"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -44,8 +45,9 @@ func TestMain(m *testing.M) {
 		panic("failed to run migrations: " + runMigrationsErr.Error())
 	}
 
-	handlers := server.WireHandlers(testDriver, testJWTSecret)
-	testRouter = server.NewRouter(handlers, testJWTSecret)
+	cookieConfig := middleware.CookieConfig{Secure: false}
+	handlers := server.WireHandlers(testDriver, testJWTSecret, cookieConfig)
+	testRouter = server.NewRouter(handlers, testJWTSecret, "http://localhost:5173")
 
 	code := m.Run()
 
@@ -75,7 +77,13 @@ func cleanDB(t *testing.T) {
 	}
 }
 
-func registerAndLogin(t *testing.T, email, password string) string {
+// authCookies holds the cookies returned by register/login for use in subsequent requests.
+type authCookies struct {
+	tokenCookie *http.Cookie
+	csrfCookie  *http.Cookie
+}
+
+func registerAndLogin(t *testing.T, email, password string) authCookies {
 	t.Helper()
 
 	registerBody, registerMarshalErr := json.Marshal(map[string]string{"email": email, "password": password})
@@ -87,14 +95,29 @@ func registerAndLogin(t *testing.T, email, password string) string {
 	testRouter.ServeHTTP(registerRecorder, registerRequest)
 	require.Equal(t, http.StatusCreated, registerRecorder.Code, "failed to register user: %s", registerRecorder.Body.String())
 
-	var tokenResponse map[string]string
-	require.NoError(t, json.Unmarshal(registerRecorder.Body.Bytes(), &tokenResponse))
-	return tokenResponse["token"]
+	return extractAuthCookies(t, registerRecorder)
 }
 
-// doRequest sends an authenticated request and unmarshals the response into dest.
+func extractAuthCookies(t *testing.T, recorder *httptest.ResponseRecorder) authCookies {
+	t.Helper()
+	cookieList := recorder.Result().Cookies()
+	var result authCookies
+	for _, cookie := range cookieList {
+		switch cookie.Name {
+		case middleware.AuthCookieName:
+			result.tokenCookie = cookie
+		case middleware.CSRFCookieName:
+			result.csrfCookie = cookie
+		}
+	}
+	require.NotNil(t, result.tokenCookie, "auth cookie not found in response")
+	require.NotNil(t, result.csrfCookie, "CSRF cookie not found in response")
+	return result
+}
+
+// doRequest sends an authenticated request using cookies and unmarshals the response into dest.
 // Pass nil for body on GET/DELETE. Pass nil for dest if you don't need the response body.
-func doRequest(t *testing.T, method, path string, body any, token string, expectedStatus int, dest any) *httptest.ResponseRecorder {
+func doRequest(t *testing.T, method, path string, body any, auth authCookies, expectedStatus int, dest any) *httptest.ResponseRecorder {
 	t.Helper()
 
 	reqBody := &bytes.Buffer{}
@@ -106,8 +129,12 @@ func doRequest(t *testing.T, method, path string, body any, token string, expect
 
 	request := httptest.NewRequest(method, path, reqBody)
 	request.Header.Set("Content-Type", "application/json")
-	if token != "" {
-		request.Header.Set("Authorization", "Bearer "+token)
+	if auth.tokenCookie != nil {
+		request.AddCookie(auth.tokenCookie)
+	}
+	// Add CSRF header for state-changing methods
+	if method != http.MethodGet && method != http.MethodHead && auth.csrfCookie != nil {
+		request.Header.Set(middleware.CSRFHeaderName, auth.csrfCookie.Value)
 	}
 	recorder := httptest.NewRecorder()
 
@@ -119,4 +146,10 @@ func doRequest(t *testing.T, method, path string, body any, token string, expect
 	}
 
 	return recorder
+}
+
+// doUnauthenticatedRequest sends a request without cookies (for testing public endpoints and auth errors).
+func doUnauthenticatedRequest(t *testing.T, method, path string, body any, expectedStatus int, dest any) *httptest.ResponseRecorder {
+	t.Helper()
+	return doRequest(t, method, path, body, authCookies{}, expectedStatus, dest)
 }
