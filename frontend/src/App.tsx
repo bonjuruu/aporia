@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { useGraph } from './hooks/useGraph'
 import { GraphCanvas } from './components/Graph/GraphCanvas'
@@ -11,19 +11,20 @@ import { AddNodeModal } from './components/Curation/AddNodeModal'
 import { AddEdgeModal } from './components/Curation/AddEdgeModal'
 import { ReadingView } from './components/ReadingMode/ReadingView'
 import { AuthPage } from './components/Auth/AuthPage'
+import { NODE_TYPES } from './types'
 import type { GraphNode, NodeType } from './types'
 
-const ALL_TYPES = new Set(['THINKER', 'CONCEPT', 'CLAIM', 'TEXT'])
+const ALL_TYPES = new Set<NodeType>(NODE_TYPES)
 
 function GraphView({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
   const { data, loading, error, addNode, addEdge, refetchGraph } = useGraph()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(ALL_TYPES))
+  const [activeTypes, setActiveTypes] = useState<Set<NodeType>>(new Set(ALL_TYPES))
   const [addNodeOpen, setAddNodeOpen] = useState(false)
   const [addNodeType, setAddNodeType] = useState<NodeType | null>(null)
   const [addEdgeOpen, setAddEdgeOpen] = useState(false)
-  const [edgeSourceNode, setEdgeSourceNode] = useState<{ id: string; label: string; type: string } | null>(null)
+  const [edgeSourceNode, setEdgeSourceNode] = useState<{ id: string; label: string; type: NodeType } | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
 
   const handleNodeClick = useCallback((node: GraphNode) => {
@@ -39,7 +40,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const handleCloseAddNode = useCallback(() => { setAddNodeOpen(false); setAddNodeType(null) }, [])
   const handleCloseAddEdge = useCallback(() => { setAddEdgeOpen(false); setEdgeSourceNode(null) }, [])
 
-  const handleAddEdge = useCallback((sourceNode: { id: string; label: string; type: string }) => {
+  const handleAddEdge = useCallback((sourceNode: { id: string; label: string; type: NodeType }) => {
     setEdgeSourceNode(sourceNode)
     setAddEdgeOpen(true)
   }, [])
@@ -61,7 +62,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
 
   const handleCloseContextMenu = useCallback(() => setContextMenu(null), [])
 
-  const handleToggleType = useCallback((type: string) => {
+  const handleToggleType = useCallback((type: NodeType) => {
     setActiveTypes(prev => {
       const next = new Set(prev)
       if (next.has(type)) {
@@ -83,8 +84,13 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
 
   if (error) {
     return (
-      <div className="centered-screen" style={{ color: 'var(--color-node-claim)' }}>
-        ERROR: {error}
+      <div className="centered-screen centered-screen--column">
+        <div style={{ color: 'var(--color-node-claim)' }}>
+          ERROR: {error}
+        </div>
+        <button className="btn" onClick={refetchGraph} style={{ fontSize: 11, marginTop: 12 }}>
+          RETRY
+        </button>
       </div>
     )
   }
@@ -176,7 +182,7 @@ export default function App() {
   if (authError) {
     return (
       <div className="centered-screen centered-screen--column">
-        <div className="auth-card__error">
+        <div className="auth-card__error" role="alert">
           CONNECTION ERROR: {authError}
         </div>
         <button className="btn" onClick={retry} style={{ fontSize: 11 }}>
@@ -194,6 +200,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<GraphView onLogout={logout} />} />
       <Route path="/reading/:id" element={<ReadingView onLogout={logout} />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
