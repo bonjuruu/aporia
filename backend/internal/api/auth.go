@@ -1,8 +1,10 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/bonjuruu/aporia/internal/apperror"
 	"github.com/bonjuruu/aporia/internal/middleware"
 	"github.com/bonjuruu/aporia/internal/request"
 	"github.com/bonjuruu/aporia/internal/response"
@@ -72,6 +74,12 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 
 	user, getUserErr := h.authService.GetUser(c.Request.Context(), userID.(string))
 	if getUserErr != nil {
+		var appErr *apperror.AppError
+		if errors.As(getUserErr, &appErr) && appErr.Status == http.StatusNotFound {
+			middleware.ClearAuthCookie(c, h.cookieConfig)
+			response.RespondError(c, http.StatusUnauthorized, "user not found")
+			return
+		}
 		response.HandleError(c, "failed to get user", getUserErr)
 		return
 	}

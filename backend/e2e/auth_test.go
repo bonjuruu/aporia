@@ -81,8 +81,20 @@ func TestAuthJourney(t *testing.T) {
 	testRouter.ServeHTTP(csrfRecorder, csrfTestRequest)
 	assert.Equal(t, http.StatusForbidden, csrfRecorder.Code, "mutating request without CSRF header should be rejected")
 
+	// Stale cookie: valid JWT but user deleted from DB should return 401 and clear cookie
+	deleteUser(t, registeredUser.ID)
+	staleRecorder := doRequest(t, http.MethodGet, "/api/auth/me", nil, loginAuth, http.StatusUnauthorized, nil)
+	for _, cookie := range staleRecorder.Result().Cookies() {
+		if cookie.Name == middleware.AuthCookieName {
+			assert.True(t, cookie.MaxAge < 0, "auth cookie should be cleared when user not found")
+		}
+	}
+
+	// Re-register so we can test logout
+	reRegisterAuth := registerAndLogin(t, "plato@academy.gr", "password123")
+
 	// Logout clears cookies
-	logoutRecorder := doRequest(t, http.MethodPost, "/api/auth/logout", nil, loginAuth, http.StatusOK, nil)
+	logoutRecorder := doRequest(t, http.MethodPost, "/api/auth/logout", nil, reRegisterAuth, http.StatusOK, nil)
 
 	// Verify the Set-Cookie headers clear the auth cookie
 	for _, cookie := range logoutRecorder.Result().Cookies() {

@@ -156,3 +156,16 @@ func doUnauthenticatedRequest(t *testing.T, method, path string, body any, expec
 	t.Helper()
 	return doRequest(t, method, path, body, authCookies{}, expectedStatus, dest)
 }
+
+// deleteUser removes a user node from Neo4j directly, simulating a DB reset with a stale cookie.
+func deleteUser(t *testing.T, userID string) {
+	t.Helper()
+	ctx := context.Background()
+	session := testDriver.NewSession(ctx, neo4j.SessionConfig{})
+	defer func() { _ = session.Close(ctx) }()
+
+	result, runErr := session.Run(ctx, "MATCH (u:User {id: $id}) DETACH DELETE u", map[string]any{"id": userID})
+	require.NoError(t, runErr)
+	_, consumeErr := result.Consume(ctx)
+	require.NoError(t, consumeErr)
+}
