@@ -1,4 +1,4 @@
-import type { EdgeType, GraphData, GraphNode, GraphEdge, NodeDetail, SearchResult, AuthUser, CreateNodeBody, UpdateNodeBody, Quote, CreateQuoteBody, UpdateQuoteBody } from '../types'
+import type { EdgeType, GraphData, GraphNode, GraphEdge, NodeDetail, SearchResult, AuthUser, CreateNodeBody, UpdateNodeBody, Quote, CreateQuoteBody, UpdateQuoteBody, ReadingProgress, UpdateProgressBody } from '../types'
 
 const BASE = '/api'
 
@@ -213,5 +213,21 @@ export function promoteQuote(quoteId: string, nodeBody: CreateNodeBody): Promise
   return request(`${BASE}/quotes/${encodeURIComponent(quoteId)}/promote`, {
     method: 'POST',
     body: JSON.stringify(nodeBody),
+  })
+}
+
+// Reading Progress
+export function fetchAllProgress(signal?: AbortSignal): Promise<ReadingProgress[]> {
+  return request(`${BASE}/progress`, signal ? { signal } : undefined)
+}
+
+export function fetchProgressForText(textId: string, signal?: AbortSignal): Promise<ReadingProgress> {
+  return request(`${BASE}/progress/${encodeURIComponent(textId)}`, signal ? { signal } : undefined)
+}
+
+export function updateProgress(textId: string, body: UpdateProgressBody): Promise<ReadingProgress> {
+  return request(`${BASE}/progress/${encodeURIComponent(textId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
   })
 }

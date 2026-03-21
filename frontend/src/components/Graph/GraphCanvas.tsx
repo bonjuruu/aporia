@@ -41,9 +41,10 @@ interface Props {
   onNodeClick: (node: GraphNode) => void
   filterTypes?: Set<NodeType>
   onContextMenu?: (e: React.MouseEvent) => void
+  progressMap?: Map<string, number>
 }
 
-export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onContextMenu }: Props) {
+export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onContextMenu, progressMap }: Props) {
   const reactId = useId()
   const arrowId = `arrow-${reactId.replace(/:/g, '')}`
   const svgRef = useRef<SVGSVGElement>(null)
@@ -53,6 +54,8 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
   onNodeClickRef.current = onNodeClick
   const filteredDataRef = useRef<GraphData>({ nodes: [], edges: [] })
   const adjacencyRef = useRef<Map<string, Set<string>>>(new Map())
+  const progressMapRef = useRef<Map<string, number>>(new Map())
+  progressMapRef.current = progressMap ?? new Map()
 
   const filteredData = useMemo<GraphData>(() => {
     const nodes = filterTypes && filterTypes.size > 0
@@ -278,6 +281,37 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, onCont
       .attr('stroke-width', (d: GraphNode) => d.id === selectedId ? 1.5 : 0.5)
       .attr('stroke', (d: GraphNode) => d.id === selectedId ? '#e8e0d0' : (colors[d.type] ?? '#888'))
   }, [selectedId])
+
+  // Update progress rings on TEXT nodes without reheating simulation
+  useEffect(() => {
+    const svg = d3.select(svgRef.current!)
+    const pMap = progressMapRef.current
+
+    svg.select('.nodes-layer')
+      .selectAll<SVGGElement, GraphNode>('g.node')
+      .each(function(d) {
+        const g = d3.select(this)
+
+        if (d.type !== 'TEXT') return
+        g.selectAll('.progress-ring').remove()
+
+        const pct = pMap.get(d.id)
+        if (!pct || pct <= 0) return
+
+        const arcPath = d3.arc()({
+          innerRadius: 12,
+          outerRadius: 15,
+          startAngle: 0,
+          endAngle: pct * 2 * Math.PI,
+        } as d3.DefaultArcObject)
+
+        g.append('path')
+          .attr('class', 'progress-ring')
+          .attr('d', arcPath)
+          .attr('fill', '#c4973a')
+          .attr('opacity', 0.7)
+      })
+  }, [progressMap])
 
   return (
     <>

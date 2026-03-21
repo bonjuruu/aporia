@@ -11,6 +11,8 @@ import { AddNodeModal } from './components/Curation/AddNodeModal'
 import { AddEdgeModal } from './components/Curation/AddEdgeModal'
 import { ReadingView } from './components/ReadingMode/ReadingView'
 import { VaultPanel } from './components/Vault/VaultPanel'
+import { ProgressPanel } from './components/Reading/ProgressPanel'
+import { useProgress } from './hooks/useProgress'
 import { AuthPage } from './components/Auth/AuthPage'
 import { NODE_TYPES } from './types'
 import type { GraphNode, NodeType } from './types'
@@ -20,6 +22,7 @@ const ALL_TYPES = new Set<NodeType>(NODE_TYPES)
 function GraphView({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
   const { data, loading, error, addNode, addEdge, refetchGraph } = useGraph()
+  const { progressList, progressMap } = useProgress()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeTypes, setActiveTypes] = useState<Set<NodeType>>(new Set(ALL_TYPES))
   const [addNodeOpen, setAddNodeOpen] = useState(false)
@@ -30,6 +33,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const [vaultOpen, setVaultOpen] = useState(false)
   const [vaultTextId, setVaultTextId] = useState<string | undefined>(undefined)
   const [vaultTextLabel, setVaultTextLabel] = useState<string | undefined>(undefined)
+  const [readingPanelOpen, setReadingPanelOpen] = useState(false)
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedId(node.id)
@@ -64,6 +68,9 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
     setVaultTextId(undefined)
     setVaultTextLabel(undefined)
   }, [])
+
+  const handleOpenReadingPanel = useCallback(() => setReadingPanelOpen(true), [])
+  const handleCloseReadingPanel = useCallback(() => setReadingPanelOpen(false), [])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -124,6 +131,9 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
           <button className="btn btn--sm" onClick={() => handleOpenVault()}>
             VAULT
           </button>
+          <button className="btn btn--sm" onClick={handleOpenReadingPanel}>
+            READING
+          </button>
           <button className="btn btn--sm" onClick={onLogout}>
             LOGOUT
           </button>
@@ -138,6 +148,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onContextMenu={handleContextMenu}
         // activeTypes is always a subset of ALL_TYPES, so size equality implies set equality
         filterTypes={activeTypes.size === ALL_TYPES.size ? undefined : activeTypes}
+        progressMap={progressMap}
       />
 
       {/* Detail panel */}
@@ -149,7 +160,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onNodeUpdated={refetchGraph}
         onReadText={handleReadText}
         onOpenVault={handleOpenVault}
-        escapeDisabled={addNodeOpen || addEdgeOpen || vaultOpen}
+        escapeDisabled={addNodeOpen || addEdgeOpen || vaultOpen || readingPanelOpen}
       />
 
       {/* Floating add button */}
@@ -186,6 +197,14 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
           textLabel={vaultTextLabel}
           onClose={handleCloseVault}
           onNodeCreated={addNode}
+        />
+      )}
+
+      {/* Reading progress panel */}
+      {readingPanelOpen && (
+        <ProgressPanel
+          progressList={progressList}
+          onClose={handleCloseReadingPanel}
         />
       )}
 

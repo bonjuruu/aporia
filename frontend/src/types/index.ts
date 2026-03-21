@@ -198,6 +198,28 @@ export interface UpdateQuoteBody {
   page?: number
 }
 
+// Reading Progress types
+export interface SessionNote {
+  date: string
+  chapter: string
+  note: string
+}
+
+export interface ReadingProgress {
+  textId: string
+  textTitle: string
+  chapter: string
+  totalChapters: number | null
+  lastReadAt: string
+  sessionNotes: SessionNote[]
+}
+
+export interface UpdateProgressBody {
+  chapter: string
+  totalChapters?: number
+  note?: string
+}
+
 // Request body types for create/update node
 export type CreateNodeBody =
   | { type: 'THINKER'; name: string; description?: string; tradition?: string; bornYear?: number; diedYear?: number }

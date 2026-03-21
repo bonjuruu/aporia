@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchSubgraph, fetchNodesByType, fetchNode } from '../../api/client'
 import { GraphCanvas } from '../Graph/GraphCanvas'
 import { DetailPanel } from '../Panel/DetailPanel'
 import { ReadingSidebar } from './ReadingSidebar'
-import type { GraphData, GraphNode, GraphEdge, NodeDetail, TextProperties } from '../../types'
+import { useProgress } from '../../hooks/useProgress'
+import type { GraphData, GraphNode, GraphEdge, NodeDetail, TextProperties, ReadingProgress } from '../../types'
 
 interface Props {
   onLogout: () => void
@@ -13,6 +14,10 @@ interface Props {
 export function ReadingView({ onLogout }: Props) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+
+  const { progressMap, update: updateProgressFn, fetchForText } = useProgress()
+  const [textProgress, setTextProgress] = useState<ReadingProgress | null>(null)
+  const touchedRef = useRef<string | null>(null)
 
   const [subgraphData, setSubgraphData] = useState<GraphData>({ nodes: [], edges: [] })
   const [textDetail, setTextDetail] = useState<NodeDetail | null>(null)
@@ -27,6 +32,26 @@ export function ReadingView({ onLogout }: Props) {
 
   // Derive loading: unsettled whenever fetch key differs
   const loading = settledKey !== fetchKey
+
+  // Fetch existing progress for this text on mount / text change
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    fetchForText(id).then(progress => {
+      if (cancelled) return
+      setTextProgress(progress)
+      // Auto-touch lastReadAt on mount (once per text)
+      if (touchedRef.current !== id && progress) {
+        touchedRef.current = id
+        updateProgressFn(id, { chapter: progress.chapter }).catch(() => {})
+      }
+    })
+    return () => { cancelled = true }
+  }, [id, fetchForText, updateProgressFn])
+
+  const handleProgressUpdated = useCallback((progress: ReadingProgress) => {
+    setTextProgress(progress)
+  }, [])
 
   // Fetch text list once on mount (not on every refetch)
   useEffect(() => {
@@ -141,6 +166,8 @@ export function ReadingView({ onLogout }: Props) {
         textDescription={textProperties?.description}
         onNodeCreated={handleNodeCreated}
         onEdgeCreated={handleEdgeCreated}
+        progress={textProgress}
+        onProgressUpdated={handleProgressUpdated}
       />
 
       {/* Main content area */}
@@ -184,6 +211,7 @@ export function ReadingView({ onLogout }: Props) {
           data={subgraphData}
           selectedId={selectedId}
           onNodeClick={handleNodeClick}
+          progressMap={progressMap}
         />
 
         {/* Detail panel */}

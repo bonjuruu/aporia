@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { createNode, createEdge } from '../../api/client'
 import { NodeSearchInput } from '../Curation/NodeSearchInput'
+import { UpdateProgressForm } from '../Reading/UpdateProgressForm'
+import { SessionLog } from '../Reading/SessionLog'
 import { nodeDetailToGraphNode, isEdgeType } from '../../types'
-import type { GraphNode, GraphEdge, NodeType, EdgeType, SearchResult, CreateNodeBody } from '../../types'
+import type { GraphNode, GraphEdge, NodeType, EdgeType, SearchResult, CreateNodeBody, ReadingProgress } from '../../types'
 
 interface Props {
   textId: string
@@ -11,6 +13,8 @@ interface Props {
   textDescription?: string | null
   onNodeCreated: (node: GraphNode) => void
   onEdgeCreated: (edge: GraphEdge) => void
+  progress?: ReadingProgress | null
+  onProgressUpdated: (progress: ReadingProgress) => void
 }
 
 const QUICK_ADD_TYPES: { value: NodeType; label: string }[] = [
@@ -39,7 +43,7 @@ const EDGE_TYPES_INTO_TEXT = new Set(
 )
 const ALL_EDGE_TYPES = Object.keys(EDGE_DIRECTION) as EdgeType[]
 
-export function ReadingSidebar({ textId, textTitle, textYear, textDescription, onNodeCreated, onEdgeCreated }: Props) {
+export function ReadingSidebar({ textId, textTitle, textYear, textDescription, onNodeCreated, onEdgeCreated, progress, onProgressUpdated }: Props) {
   const [addType, setAddType] = useState<NodeType>('CONCEPT')
   const [addName, setAddName] = useState('')
   const [addDescription, setAddDescription] = useState('')
@@ -125,6 +129,17 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
           <div className="content-text mt-2">{textDescription}</div>
         )}
       </div>
+
+      {/* Divider */}
+      <div className="sidebar-divider" />
+
+      {/* Reading progress */}
+      <UpdateProgressForm
+        key={progress?.lastReadAt ?? 'new'}
+        textId={textId}
+        currentProgress={progress}
+        onUpdated={onProgressUpdated}
+      />
 
       {/* Divider */}
       <div className="sidebar-divider" />
@@ -218,6 +233,16 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
           {linkingEdge ? 'LINKING...' : 'LINK EDGE'}
         </button>
       </div>
+
+      {/* Session log */}
+      {progress && progress.sessionNotes.length > 0 && (
+        <>
+          <div className="sidebar-divider" />
+          <div className="sidebar-section">
+            <SessionLog sessionNotes={progress.sessionNotes} />
+          </div>
+        </>
+      )}
     </div>
   )
 }

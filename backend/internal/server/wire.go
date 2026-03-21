@@ -10,11 +10,12 @@ import (
 )
 
 type Handlers struct {
-	Node  *api.NodeHandler
-	Edge  *api.EdgeHandler
-	Graph *api.GraphHandler
-	Auth  *api.AuthHandler
-	Quote *api.QuoteHandler
+	Node     *api.NodeHandler
+	Edge     *api.EdgeHandler
+	Graph    *api.GraphHandler
+	Auth     *api.AuthHandler
+	Quote    *api.QuoteHandler
+	Progress *api.ProgressHandler
 }
 
 func WireHandlers(driver neo4j.DriverWithContext, jwtSecret []byte, cookieConfig middleware.CookieConfig) Handlers {
@@ -26,6 +27,7 @@ func WireHandlers(driver neo4j.DriverWithContext, jwtSecret []byte, cookieConfig
 	userStore := store.NewUserStore(neo4jKit)
 	annotationStore := store.NewAnnotationStore(neo4jKit)
 	quoteStore := store.NewQuoteStore(neo4jKit)
+	progressStore := store.NewProgressStore(neo4jKit)
 
 	nodeService := service.NewNodeService(nodeStore)
 	edgeService := service.NewEdgeService(edgeStore)
@@ -33,12 +35,14 @@ func WireHandlers(driver neo4j.DriverWithContext, jwtSecret []byte, cookieConfig
 	authService := service.NewAuthService(userStore, jwtSecret)
 	annotationService := service.NewAnnotationService(annotationStore)
 	quoteService := service.NewQuoteService(quoteStore)
+	progressService := service.NewProgressService(progressStore)
 
 	return Handlers{
-		Node:  api.NewNodeHandler(nodeService),
-		Edge:  api.NewEdgeHandler(edgeService),
-		Graph: api.NewGraphHandler(graphService),
-		Auth:  api.NewAuthHandler(authService, annotationService, cookieConfig),
-		Quote: api.NewQuoteHandler(quoteService),
+		Node:     api.NewNodeHandler(nodeService),
+		Edge:     api.NewEdgeHandler(edgeService),
+		Graph:    api.NewGraphHandler(graphService),
+		Auth:     api.NewAuthHandler(authService, annotationService, cookieConfig),
+		Quote:    api.NewQuoteHandler(quoteService),
+		Progress: api.NewProgressHandler(progressService),
 	}
 }

@@ -77,6 +77,10 @@ func NewRouter(h Handlers, jwtSecret []byte, allowOrigin string) *gin.Engine {
 		protected.PUT("/quotes/:id", h.Quote.UpdateQuote)
 		protected.DELETE("/quotes/:id", h.Quote.DeleteQuote)
 		protected.POST("/quotes/:id/promote", h.Quote.PromoteQuote)
+
+		protected.GET("/progress", h.Progress.ListProgress)
+		protected.GET("/progress/:textId", h.Progress.GetProgress)
+		protected.PUT("/progress/:textId", h.Progress.UpdateProgress)
 	}
 
 	return r
