@@ -45,15 +45,37 @@ func (s *graphStore) GetFullGraph(ctx context.Context) (*response.GraphData, err
 
 func (s *graphStore) GetSubgraph(ctx context.Context, textID string) (*response.GraphData, error) {
 	record, singleErr := s.neo4jKit.Single(ctx, `
-		MATCH (n)-[r]->(m)
-		WHERE r.source_text_id = $text_id
-		  AND (n:Thinker OR n:Concept OR n:Claim OR n:Text)
-		  AND (m:Thinker OR m:Concept OR m:Claim OR m:Text)
-		WITH collect(DISTINCT {id: n.id, label: coalesce(n.name, n.title, n.content), type: toUpper(labels(n)[0]), year: coalesce(n.born_year, n.published_year, n.year)}) +
-			 collect(DISTINCT {id: m.id, label: coalesce(m.name, m.title, m.content), type: toUpper(labels(m)[0]), year: coalesce(m.born_year, m.published_year, m.year)}) as allNodes,
-			 collect(DISTINCT {id: r.id, source: n.id, target: m.id, type: type(r), description: r.description, source_text_id: r.source_text_id}) as edges
-		UNWIND allNodes as node
-		WITH collect(DISTINCT node) as nodes, edges
+		MATCH (t {id: $text_id})
+		WHERE t:Text
+		// Collect direct neighbors (edges to/from this text)
+		OPTIONAL MATCH (t)-[r1]-(neighbor)
+		WHERE (neighbor:Thinker OR neighbor:Concept OR neighbor:Claim OR neighbor:Text)
+		  AND type(r1) <> 'ANNOTATES' AND type(r1) <> 'CAPTURED'
+		  AND type(r1) <> 'FROM_TEXT' AND type(r1) <> 'READING'
+		WITH t, collect(DISTINCT neighbor) as neighbors, collect(DISTINCT r1) as directRels
+		// Also collect edges between neighbors that cite this text as source
+		OPTIONAL MATCH (a)-[r2]->(b)
+		WHERE r2.source_text_id = $text_id
+		  AND (a:Thinker OR a:Concept OR a:Claim OR a:Text)
+		  AND (b:Thinker OR b:Concept OR b:Claim OR b:Text)
+		WITH t, neighbors, directRels,
+			 collect(DISTINCT a) + collect(DISTINCT b) as citedNodes,
+			 collect(DISTINCT r2) as citedRels
+		// Collect edges between any two neighbors (inter-neighbor edges)
+		WITH t, neighbors + citedNodes as allNeighbors, directRels + citedRels as collectedRels
+		OPTIONAL MATCH (x)-[r3]->(y)
+		WHERE x IN allNeighbors AND y IN allNeighbors
+		  AND type(r3) <> 'ANNOTATES' AND type(r3) <> 'CAPTURED'
+		  AND type(r3) <> 'FROM_TEXT' AND type(r3) <> 'READING'
+		WITH t, allNeighbors, collectedRels, collect(DISTINCT r3) as neighborRels
+		WITH allNeighbors + [t] as allNodeObjects,
+			 collectedRels + neighborRels as allRelObjects
+		UNWIND allNodeObjects as n
+		WITH collect(DISTINCT {id: n.id, label: coalesce(n.name, n.title, n.content), type: toUpper(labels(n)[0]), year: coalesce(n.born_year, n.published_year, n.year)}) as nodes,
+			 allRelObjects
+		UNWIND allRelObjects as r
+		WITH nodes,
+			 collect(DISTINCT {id: r.id, source: startNode(r).id, target: endNode(r).id, type: type(r), description: r.description, source_text_id: r.source_text_id}) as edges
 		RETURN nodes, edges
 	`, map[string]any{"text_id": textID})
 	if singleErr != nil {

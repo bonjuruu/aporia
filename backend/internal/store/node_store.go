@@ -72,10 +72,19 @@ func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetai
 		WITH n, collect(DISTINCT {edge_id: r.id, edge_type: type(r), edge_desc: r.description, edge_source_text: r.source_text_id, target_id: out.id, target_label: coalesce(out.name, out.title, out.content), target_type: toUpper(labels(out)[0]), target_year: coalesce(out.born_year, out.published_year, out.year)}) as outgoing
 		OPTIONAL MATCH (in_node)-[in_r]->(n)
 		WHERE in_node:Thinker OR in_node:Concept OR in_node:Claim OR in_node:Text
+		WITH n, outgoing,
+			collect(DISTINCT {edge_id: in_r.id, edge_type: type(in_r), edge_desc: in_r.description, edge_source_text: in_r.source_text_id, source_id: in_node.id, source_label: coalesce(in_node.name, in_node.title, in_node.content), source_type: toUpper(labels(in_node)[0]), source_year: coalesce(in_node.born_year, in_node.published_year, in_node.year)}) as incoming
+		// Resolve source text titles for all edges
+		WITH n, outgoing, incoming,
+			[e in outgoing WHERE e.edge_source_text IS NOT NULL AND e.edge_source_text <> "" | e.edge_source_text] +
+			[e in incoming WHERE e.edge_source_text IS NOT NULL AND e.edge_source_text <> "" | e.edge_source_text] as stIds
+		OPTIONAL MATCH (st:Text) WHERE st.id IN stIds
+		WITH n, outgoing, incoming, collect({id: st.id, title: st.title}) as stLookup
 		RETURN n,
 			toUpper(labels(n)[0]) as type,
 			outgoing,
-			collect(DISTINCT {edge_id: in_r.id, edge_type: type(in_r), edge_desc: in_r.description, edge_source_text: in_r.source_text_id, source_id: in_node.id, source_label: coalesce(in_node.name, in_node.title, in_node.content), source_type: toUpper(labels(in_node)[0]), source_year: coalesce(in_node.born_year, in_node.published_year, in_node.year)}) as incoming
+			incoming,
+			stLookup
 	`, map[string]any{"id": id})
 	if singleErr != nil {
 		return nil, fmt.Errorf("failed to get node by id: %w", singleErr)
@@ -101,6 +110,23 @@ func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetai
 		Incoming:   []response.ConnectionEntry{},
 	}
 
+	// Build source text title lookup map
+	sourceTextTitleMap := map[string]string{}
+	stLookupRaw, _ := record.Get("stLookup")
+	if stList, ok := stLookupRaw.([]any); ok {
+		for _, item := range stList {
+			m, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			stID := util.ToString(m["id"])
+			stTitle := util.ToString(m["title"])
+			if stID != "" && stTitle != "" {
+				sourceTextTitleMap[stID] = stTitle
+			}
+		}
+	}
+
 	outgoingRaw, _ := record.Get("outgoing")
 	if outList, ok := outgoingRaw.([]any); ok {
 		for _, item := range outList {
@@ -112,14 +138,16 @@ func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetai
 			if edgeID == "" {
 				continue
 			}
+			stID := util.ToString(m["edge_source_text"])
 			entry := response.ConnectionEntry{
 				Edge: models.Edge{
-					ID:           edgeID,
-					Source:       id,
-					Target:       util.ToString(m["target_id"]),
-					Type:         models.EdgeType(util.ToString(m["edge_type"])),
-					Description:  util.ToString(m["edge_desc"]),
-					SourceTextID: util.ToString(m["edge_source_text"]),
+					ID:              edgeID,
+					Source:          id,
+					Target:          util.ToString(m["target_id"]),
+					Type:            models.EdgeType(util.ToString(m["edge_type"])),
+					Description:     util.ToString(m["edge_desc"]),
+					SourceTextID:    stID,
+					SourceTextTitle: sourceTextTitleMap[stID],
 				},
 				Node: response.GraphNode{
 					ID:    util.ToString(m["target_id"]),
@@ -143,14 +171,16 @@ func (s *nodeStore) GetByID(ctx context.Context, id string) (*response.NodeDetai
 			if edgeID == "" {
 				continue
 			}
+			stID := util.ToString(m["edge_source_text"])
 			entry := response.ConnectionEntry{
 				Edge: models.Edge{
-					ID:           edgeID,
-					Source:       util.ToString(m["source_id"]),
-					Target:       id,
-					Type:         models.EdgeType(util.ToString(m["edge_type"])),
-					Description:  util.ToString(m["edge_desc"]),
-					SourceTextID: util.ToString(m["edge_source_text"]),
+					ID:              edgeID,
+					Source:          util.ToString(m["source_id"]),
+					Target:          id,
+					Type:            models.EdgeType(util.ToString(m["edge_type"])),
+					Description:     util.ToString(m["edge_desc"]),
+					SourceTextID:    stID,
+					SourceTextTitle: sourceTextTitleMap[stID],
 				},
 				Node: response.GraphNode{
 					ID:    util.ToString(m["source_id"]),

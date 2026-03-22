@@ -37,12 +37,13 @@ func ValidEdgeType(t EdgeType) bool {
 }
 
 type Edge struct {
-	ID           string   `json:"id"`
-	Source       string   `json:"source"`
-	Target       string   `json:"target"`
-	Type         EdgeType `json:"type"`
-	Description  string   `json:"description"`
-	SourceTextID string   `json:"sourceTextId"`
+	ID              string   `json:"id"`
+	Source          string   `json:"source"`
+	Target          string   `json:"target"`
+	Type            EdgeType `json:"type"`
+	Description     string   `json:"description"`
+	SourceTextID    string   `json:"sourceTextId"`
+	SourceTextTitle string   `json:"sourceTextTitle,omitempty"`
 }
 
 func (e Edge) String() string {

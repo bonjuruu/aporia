@@ -32,6 +32,7 @@ export interface GraphEdge {
   type: EdgeType
   description?: string
   sourceTextId?: string
+  sourceTextTitle?: string
 }
 
 /** Extract the node ID from a GraphEdge source/target (string before d3 simulation, GraphNode after). */
