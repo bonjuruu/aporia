@@ -81,8 +81,14 @@ func (s *ProgressService) Update(ctx context.Context, userID string, textID stri
 		return nil, fmt.Errorf("failed to serialize session notes: %w", marshalErr)
 	}
 
+	// Preserve existing totalChapters if not provided in request
+	totalChapters := req.TotalChapters
+	if totalChapters == nil && existingProgress != nil {
+		totalChapters = existingProgress.TotalChapters
+	}
+
 	lastReadAt := time.Now().UTC().Format(time.RFC3339)
-	progress, upsertErr := s.progressStore.Upsert(ctx, userID, textID, req.Chapter, req.TotalChapters, lastReadAt, string(sessionNotesJSON))
+	progress, upsertErr := s.progressStore.Upsert(ctx, userID, textID, req.Chapter, totalChapters, lastReadAt, string(sessionNotesJSON))
 	if upsertErr != nil {
 		slog.Error("failed to update reading progress", "userID", userID, "textID", textID, "error", upsertErr)
 		return nil, upsertErr

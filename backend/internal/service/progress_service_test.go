@@ -290,6 +290,37 @@ func TestProgressService_Update(t *testing.T) {
 		assert.Equal(t, "3", result.Chapter)
 	})
 
+	t.Run("Should preserve existing totalChapters when request omits totalChapters", func(t *testing.T) {
+		progressStore := storeMock.NewProgressStore(t)
+		progressService := NewProgressService(progressStore)
+
+		existingTotalChapters := 16
+		existingProgress := &models.ReadingProgress{
+			TextID:        "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+			Chapter:       "1",
+			TotalChapters: &existingTotalChapters,
+			SessionNotes:  []models.SessionNote{},
+		}
+
+		updateProgressRequest := request.UpdateProgressRequest{Chapter: "3"}
+
+		progressStore.On("Get", ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "b2c3d4e5-f6a7-8901-bcde-f12345678901").
+			Return(existingProgress, nil).Once()
+		progressStore.On("Upsert", ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+			"3", &existingTotalChapters, mock.MatchedBy(isRFC3339), "[]").
+			Return(&models.ReadingProgress{
+				TextID:        "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+				Chapter:       "3",
+				TotalChapters: &existingTotalChapters,
+			}, nil).Once()
+
+		result, updateErr := progressService.Update(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "b2c3d4e5-f6a7-8901-bcde-f12345678901", updateProgressRequest)
+
+		assert.NoError(t, updateErr)
+		assert.Equal(t, "3", result.Chapter)
+		assert.Equal(t, 16, *result.TotalChapters)
+	})
+
 	t.Run("Should start with empty session notes when progress not found", func(t *testing.T) {
 		progressStore := storeMock.NewProgressStore(t)
 		progressService := NewProgressService(progressStore)
