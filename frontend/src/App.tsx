@@ -13,10 +13,12 @@ import { ReadingView } from './components/ReadingMode/ReadingView'
 import { VaultPanel } from './components/Vault/VaultPanel'
 import { ProgressPanel } from './components/Reading/ProgressPanel'
 import { TimeSlider } from './components/Controls/TimeSlider'
+import { PathQuery, PathStrip } from './components/Controls/PathQuery'
 import { useProgress } from './hooks/useProgress'
+import { usePath } from './hooks/usePath'
 import { AuthPage } from './components/Auth/AuthPage'
 import { NODE_TYPES } from './types'
-import type { GraphNode, NodeType } from './types'
+import type { GraphNode, NodeType, SearchResult } from './types'
 
 const ALL_TYPES = new Set<NodeType>(NODE_TYPES)
 
@@ -24,6 +26,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
   const { data, loading, error, addNode, addEdge, refetchGraph } = useGraph()
   const { progressList, progressMap } = useProgress()
+  const { pathData, fromId: pathFromId, loading: pathLoading, error: pathError, findPath, clearPath } = usePath()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeTypes, setActiveTypes] = useState<Set<NodeType>>(new Set(ALL_TYPES))
   const [addNodeOpen, setAddNodeOpen] = useState(false)
@@ -38,6 +41,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const [timeSliderActive, setTimeSliderActive] = useState(false)
   const [currentYear, setCurrentYear] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const [pathQueryOpen, setPathQueryOpen] = useState(false)
 
   const { minYear, maxYear } = useMemo(() => {
     const years = data.nodes.map(n => n.year).filter((y): y is number => y != null)
@@ -79,10 +83,11 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   }, [navigate])
 
   const handleOpenVault = useCallback((textId?: string, textLabel?: string) => {
+    clearPath()
     setVaultTextId(textId)
     setVaultTextLabel(textLabel)
     setVaultOpen(true)
-  }, [])
+  }, [clearPath])
 
   const handleCloseVault = useCallback(() => {
     setVaultOpen(false)
@@ -90,7 +95,10 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
     setVaultTextLabel(undefined)
   }, [])
 
-  const handleOpenReadingPanel = useCallback(() => setReadingPanelOpen(true), [])
+  const handleOpenReadingPanel = useCallback(() => {
+    clearPath()
+    setReadingPanelOpen(true)
+  }, [clearPath])
   const handleCloseReadingPanel = useCallback(() => setReadingPanelOpen(false), [])
 
   const handleToggleTimeSlider = useCallback(() => {
@@ -102,6 +110,25 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
       return !prev
     })
   }, [maxYear])
+
+  const handleOpenPathQuery = useCallback(() => setPathQueryOpen(true), [])
+  const handleClosePathQuery = useCallback(() => setPathQueryOpen(false), [])
+  const handleFindPath = useCallback((from: SearchResult, to: SearchResult) => {
+    setVaultOpen(false)
+    setReadingPanelOpen(false)
+    findPath(from, to)
+    setPathQueryOpen(false)
+  }, [findPath])
+
+  const pathNodeIds = useMemo(() => {
+    if (!pathData) return null
+    return new Set(pathData.nodes.map(n => n.id))
+  }, [pathData])
+
+  const pathEdgeIds = useMemo(() => {
+    if (!pathData) return null
+    return new Set(pathData.edges.map(e => e.id))
+  }, [pathData])
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -160,8 +187,9 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         <div className="top-bar__group top-bar__group--right">
           <SearchBar onSelect={handleNodeClickById} />
           <button className="btn btn--sm" onClick={handleToggleTimeSlider}>
-            {timeSliderActive ? 'TIMELINE \u00d7' : 'TIMELINE'}
+            {timeSliderActive ? 'TIMELINE ×' : 'TIMELINE'}
           </button>
+          <button className="btn btn--sm" onClick={handleOpenPathQuery}>PATH</button>
           <button className="btn btn--sm" onClick={() => handleOpenVault()}>
             VAULT
           </button>
@@ -184,6 +212,8 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         filterTypes={activeTypes.size === ALL_TYPES.size ? undefined : activeTypes}
         filterYear={timeSliderActive ? currentYear : undefined}
         progressMap={progressMap}
+        pathNodeIds={pathNodeIds}
+        pathEdgeIds={pathEdgeIds}
       />
 
       {/* Detail panel */}
@@ -195,7 +225,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onNodeUpdated={refetchGraph}
         onReadText={handleReadText}
         onOpenVault={handleOpenVault}
-        escapeDisabled={addNodeOpen || addEdgeOpen || vaultOpen || readingPanelOpen}
+        escapeDisabled={addNodeOpen || addEdgeOpen || vaultOpen || readingPanelOpen || pathQueryOpen}
       />
 
       {/* Floating add button */}
@@ -224,6 +254,27 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onEdgeCreated={addEdge}
         sourceNode={edgeSourceNode}
       />
+
+      {/* Path query modal */}
+      <PathQuery
+        open={pathQueryOpen}
+        onClose={handleClosePathQuery}
+        onFindPath={handleFindPath}
+        onClear={clearPath}
+        hasPath={pathData != null}
+        loading={pathLoading}
+        error={pathError}
+      />
+
+      {/* Path strip */}
+      {pathData && (
+        <PathStrip
+          pathData={pathData}
+          fromId={pathFromId}
+          onNodeClick={handleNodeClickById}
+          onClear={clearPath}
+        />
+      )}
 
       {/* Vault panel */}
       {vaultOpen && (

@@ -3,6 +3,23 @@ import * as d3 from 'd3'
 import type { GraphData, GraphNode, GraphEdge, NodeType } from '../../types'
 import { edgeEndpointId } from '../../types'
 
+/** Apply path dim opacity, or restore full opacity if no path is active. */
+function applyPathOrFullOpacity(
+  svg: d3.Selection<SVGSVGElement, unknown, null, undefined>,
+  pNodeIds: Set<string> | null,
+  pEdgeIds: Set<string> | null,
+) {
+  if (pNodeIds) {
+    svg.selectAll<SVGGElement, GraphNode>('g.node')
+      .style('opacity', d => pNodeIds.has(d.id) ? 1 : 0.12)
+    svg.selectAll<SVGLineElement, GraphEdge>('line')
+      .style('opacity', e => pEdgeIds?.has(e.id) ? 0.8 : 0.03)
+  } else {
+    svg.selectAll('g.node').style('opacity', 1)
+    svg.selectAll('line').style('opacity', 1)
+  }
+}
+
 const NODE_COLOR_VARS: Record<string, string> = {
   THINKER: '--color-node-thinker',
   CONCEPT: '--color-node-concept',
@@ -43,9 +60,11 @@ interface Props {
   filterYear?: number | null
   onContextMenu?: (e: React.MouseEvent) => void
   progressMap?: Map<string, number>
+  pathNodeIds?: Set<string> | null
+  pathEdgeIds?: Set<string> | null
 }
 
-export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filterYear, onContextMenu, progressMap }: Props) {
+export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filterYear, onContextMenu, progressMap, pathNodeIds, pathEdgeIds }: Props) {
   const reactId = useId()
   const arrowId = `arrow-${reactId.replace(/:/g, '')}`
   const svgRef = useRef<SVGSVGElement>(null)
@@ -57,6 +76,10 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
   const adjacencyRef = useRef<Map<string, Set<string>>>(new Map())
   const progressMapRef = useRef<Map<string, number>>(new Map())
   progressMapRef.current = progressMap ?? new Map()
+  const pathNodeIdsRef = useRef<Set<string> | null>(null)
+  pathNodeIdsRef.current = pathNodeIds ?? null
+  const pathEdgeIdsRef = useRef<Set<string> | null>(null)
+  pathEdgeIdsRef.current = pathEdgeIds ?? null
 
   const filteredData = useMemo<GraphData>(() => {
     const nodes = data.nodes
@@ -201,9 +224,8 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
     prevNodeIdsRef.current = currNodeIds
     prevEdgeIdsRef.current = currEdgeIds
 
-    // Reset hover opacity in case a hovered node was removed by a filter change
-    svg.selectAll('g.node').style('opacity', 1)
-    svg.selectAll('line').style('opacity', 1)
+    // Reset opacity — restore path dim if active, otherwise full opacity
+    applyPathOrFullOpacity(svg, pathNodeIdsRef.current, pathEdgeIdsRef.current)
 
     // Edges — enter/update/exit
     const edgeSelection = svg.select('.edges-layer')
@@ -297,6 +319,8 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       }
     })
     .on('mouseover', (_, d) => {
+      // Skip neighbor dimming when a path is active — path dim takes priority
+      if (pathNodeIdsRef.current) return
       const neighborIds = adjacencyRef.current.get(d.id) ?? new Set<string>()
       svg.selectAll<SVGGElement, GraphNode>('g.node')
         .style('opacity', n => n.id === d.id || neighborIds.has(n.id) ? 1 : 0.15)
@@ -306,8 +330,8 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
         )
     })
     .on('mouseout', () => {
-      svg.selectAll('g.node').style('opacity', 1)
-      svg.selectAll('line').style('opacity', 1)
+      // When path is active, restore path dim instead of full opacity
+      applyPathOrFullOpacity(svg, pathNodeIdsRef.current, pathEdgeIdsRef.current)
     })
 
     const nodes = nodesEnter.merge(nodeSelection)
@@ -375,6 +399,12 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
           .attr('opacity', 0.7)
       })
   }, [progressMap])
+
+  // Dim non-path nodes/edges when a path is active (no simulation reheat)
+  useEffect(() => {
+    const svg = d3.select(svgRef.current!)
+    applyPathOrFullOpacity(svg, pathNodeIdsRef.current, pathEdgeIdsRef.current)
+  }, [pathNodeIds, pathEdgeIds])
 
   return (
     <>
