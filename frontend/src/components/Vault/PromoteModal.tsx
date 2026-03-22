@@ -1,6 +1,7 @@
 import { useState, useEffect, useId, useCallback } from 'react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
+import { YearInput } from '../shared/YearInput'
 import { NODE_TYPES } from '../../types'
 import type { NodeType, CreateNodeBody, Quote, GraphNode } from '../../types'
 
@@ -219,29 +220,17 @@ export function PromoteModal({ open, quote, onClose, onPromote, onNodeCreated }:
 
           {selectedType === 'THINKER' && (
             <div className="form-field-pair">
-              <div className="form-field">
-                <label className="meta-label" htmlFor={`${fieldIdPrefix}-bornYear`}>Born Year</label>
-                <input className="input" id={`${fieldIdPrefix}-bornYear`} type="number" value={form.bornYear} onChange={e => setField('bornYear', e.target.value)} />
-              </div>
-              <div className="form-field">
-                <label className="meta-label" htmlFor={`${fieldIdPrefix}-diedYear`}>Died Year</label>
-                <input className="input" id={`${fieldIdPrefix}-diedYear`} type="number" value={form.diedYear} onChange={e => setField('diedYear', e.target.value)} />
-              </div>
+              <YearInput label="Born Year" value={form.bornYear} onChange={v => setField('bornYear', v)} />
+              <YearInput label="Died Year" value={form.diedYear} onChange={v => setField('diedYear', v)} />
             </div>
           )}
 
           {(selectedType === 'CONCEPT' || selectedType === 'CLAIM') && (
-            <div className="form-field">
-              <label className="meta-label" htmlFor={`${fieldIdPrefix}-year`}>Year</label>
-              <input className="input" id={`${fieldIdPrefix}-year`} type="number" value={form.year} onChange={e => setField('year', e.target.value)} />
-            </div>
+            <YearInput label="Year" value={form.year} onChange={v => setField('year', v)} />
           )}
 
           {selectedType === 'TEXT' && (
-            <div className="form-field">
-              <label className="meta-label" htmlFor={`${fieldIdPrefix}-publishedYear`}>Published Year</label>
-              <input className="input" id={`${fieldIdPrefix}-publishedYear`} type="number" value={form.publishedYear} onChange={e => setField('publishedYear', e.target.value)} />
-            </div>
+            <YearInput label="Published Year" value={form.publishedYear} onChange={v => setField('publishedYear', v)} />
           )}
 
           {error && <div className="inline-error mb-3" role="alert">{error}</div>}

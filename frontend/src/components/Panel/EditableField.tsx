@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { YearInput } from '../shared/YearInput'
 
 export function EditableField({ label, value, onChange, multiline, type }: {
   label: string
@@ -8,6 +9,11 @@ export function EditableField({ label, value, onChange, multiline, type }: {
   type?: string
 }) {
   const fieldId = useId()
+
+  if (type === 'year' || type === 'number') {
+    return <YearInput label={label} value={value} onChange={onChange} />
+  }
+
   return (
     <div className="form-field">
       <label className="meta-label" htmlFor={fieldId}>{label}</label>

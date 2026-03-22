@@ -63,7 +63,7 @@ export function UpdateProgressForm({ textId, currentProgress, onUpdated }: Props
           <input
             className="input"
             id={`${fieldIdPrefix}-total`}
-            type="number"
+            type="text" inputMode="numeric"
             min="1"
             value={totalChapters}
             onChange={e => setTotalChapters(e.target.value)}

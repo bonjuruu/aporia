@@ -1,3 +1,5 @@
+import { formatYear } from '../../utils/formatYear'
+
 interface Props {
   minYear: number
   maxYear: number
@@ -5,11 +7,6 @@ interface Props {
   onChange: (year: number) => void
   playing: boolean
   onPlayToggle: () => void
-}
-
-function formatYear(year: number): string {
-  if (year < 0) return `${Math.abs(year)} BCE`
-  return String(year)
 }
 
 export function TimeSlider({ minYear, maxYear, value, onChange, playing, onPlayToggle }: Props) {
@@ -22,7 +19,7 @@ export function TimeSlider({ minYear, maxYear, value, onChange, playing, onPlayT
       >
         {playing ? 'PAUSE' : 'PLAY'}
       </button>
-      <span className="time-slider__bounds">{formatYear(minYear)}</span>
+      <span className="time-slider__bounds">{formatYear(minYear) ?? ''}</span>
       <input
         type="range"
         className="time-slider__range"
@@ -30,10 +27,10 @@ export function TimeSlider({ minYear, maxYear, value, onChange, playing, onPlayT
         max={maxYear}
         value={value}
         onChange={e => onChange(Number(e.target.value))}
-        aria-label={`Timeline year: ${formatYear(value)}`}
+        aria-label={`Timeline year: ${formatYear(value) ?? ''}`}
       />
-      <span className="time-slider__bounds">{formatYear(maxYear)}</span>
-      <span className="time-slider__year">{formatYear(value)}</span>
+      <span className="time-slider__bounds">{formatYear(maxYear) ?? ''}</span>
+      <span className="time-slider__year">{formatYear(value) ?? ''}</span>
     </div>
   )
 }

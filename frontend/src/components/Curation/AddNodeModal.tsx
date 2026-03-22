@@ -2,7 +2,8 @@ import { useState, useEffect, useId, useCallback } from 'react'
 import { createNode } from '../../api/client'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
-import { nodeDetailToGraphNode, NODE_TYPES } from '../../types'
+import { YearInput } from '../shared/YearInput'
+import { NODE_TYPES } from '../../types'
 import type { NodeType, CreateNodeBody, GraphNode } from '../../types'
 
 interface Props {
@@ -115,8 +116,8 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
     setError(null)
 
     try {
-      const detail = await createNode(buildRequestBody(selectedType, form))
-      onNodeCreated(nodeDetailToGraphNode(detail))
+      const node = await createNode(buildRequestBody(selectedType, form))
+      onNodeCreated(node)
       handleClose()
     } catch (submitErr) {
       setError(submitErr instanceof Error ? submitErr.message : 'Failed to create node')
@@ -225,53 +226,17 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
 
             {selectedType === 'THINKER' && (
               <div className="form-field-pair">
-                <div className="form-field">
-                  <label className="meta-label" htmlFor={fieldId('bornYear')}>Born Year</label>
-                  <input
-                    className="input"
-                    id={fieldId('bornYear')}
-                    type="number"
-                    value={form.bornYear}
-                    onChange={e => setField('bornYear', e.target.value)}
-                  />
-                </div>
-                <div className="form-field">
-                  <label className="meta-label" htmlFor={fieldId('diedYear')}>Died Year</label>
-                  <input
-                    className="input"
-                    id={fieldId('diedYear')}
-                    type="number"
-                    value={form.diedYear}
-                    onChange={e => setField('diedYear', e.target.value)}
-                  />
-                </div>
+                <YearInput label="Born Year" value={form.bornYear} onChange={v => setField('bornYear', v)} />
+                <YearInput label="Died Year" value={form.diedYear} onChange={v => setField('diedYear', v)} />
               </div>
             )}
 
             {(selectedType === 'CONCEPT' || selectedType === 'CLAIM') && (
-              <div className="form-field">
-                <label className="meta-label" htmlFor={fieldId('year')}>Year</label>
-                <input
-                  className="input"
-                  id={fieldId('year')}
-                  type="number"
-                  value={form.year}
-                  onChange={e => setField('year', e.target.value)}
-                />
-              </div>
+              <YearInput label="Year" value={form.year} onChange={v => setField('year', v)} />
             )}
 
             {selectedType === 'TEXT' && (
-              <div className="form-field">
-                <label className="meta-label" htmlFor={fieldId('publishedYear')}>Published Year</label>
-                <input
-                  className="input"
-                  id={fieldId('publishedYear')}
-                  type="number"
-                  value={form.publishedYear}
-                  onChange={e => setField('publishedYear', e.target.value)}
-                />
-              </div>
+              <YearInput label="Published Year" value={form.publishedYear} onChange={v => setField('publishedYear', v)} />
             )}
 
             {error && (

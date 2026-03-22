@@ -86,7 +86,7 @@ export function CaptureForm({ onCapture, preselectedTextId, preselectedTextLabel
           <input
             className="input"
             id={`${fieldIdPrefix}-page`}
-            type="number"
+            type="text" inputMode="numeric"
             value={page}
             onChange={e => setPage(e.target.value)}
             placeholder="Optional"

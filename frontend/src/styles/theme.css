@@ -145,6 +145,49 @@ body::before {
   width: 100%;
   transition: border-color 150ms ease-out;
 }
+/* Hide number input spinners */
+.input::-webkit-outer-spin-button,
+.input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+/* Year input with era toggle */
+.year-input {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.year-input__field {
+  flex: 1;
+  min-width: 0;
+}
+.year-input__era {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  margin-top: 2px;
+  transition: color 150ms ease-out, border-color 150ms ease-out;
+}
+.year-input__era:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+.year-input__era--bce {
+  color: var(--color-text-accent);
+  border-color: var(--color-text-accent);
+}
+
 .input:focus {
   border-color: var(--color-border-strong);
 }
