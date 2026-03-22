@@ -1505,6 +1505,12 @@ body::before {
   flex-shrink: 0;
 }
 
+/* Edge labels (shown on node hover) */
+.edge-label {
+  text-transform: uppercase;
+  transition: opacity 120ms ease-out;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

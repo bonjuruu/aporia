@@ -14,9 +14,13 @@ function applyPathOrFullOpacity(
       .style('opacity', d => pNodeIds.has(d.id) ? 1 : 0.12)
     svg.selectAll<SVGLineElement, GraphEdge>('line')
       .style('opacity', e => pEdgeIds?.has(e.id) ? 0.8 : 0.03)
+    // Show edge labels along the path
+    svg.selectAll<SVGTextElement, GraphEdge>('text.edge-label')
+      .attr('opacity', e => pEdgeIds?.has(e.id) ? 0.7 : 0)
   } else {
     svg.selectAll('g.node').style('opacity', 1)
     svg.selectAll('line').style('opacity', 1)
+    svg.selectAll('text.edge-label').attr('opacity', 0)
   }
 }
 
@@ -119,12 +123,14 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       .attr('fill', 'rgba(200,180,160,0.4)')
 
     svg.append('g').attr('class', 'edges-layer')
+    svg.append('g').attr('class', 'edge-labels-layer')
     svg.append('g').attr('class', 'nodes-layer')
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.2, 4])
       .on('zoom', (event) => {
         svg.select('.edges-layer').attr('transform', event.transform)
+        svg.select('.edge-labels-layer').attr('transform', event.transform)
         svg.select('.nodes-layer').attr('transform', event.transform)
       })
     svg.call(zoom)
@@ -190,6 +196,13 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       neighborIndex.get(t)!.push(s)
     }
 
+    // Compute mean position of existing nodes as fallback for isolated new nodes
+    let meanX = 0, meanY = 0, meanCount = 0
+    for (const [, pos] of prevPositions) {
+      meanX += pos.x; meanY += pos.y; meanCount++
+    }
+    if (meanCount > 0) { meanX /= meanCount; meanY /= meanCount }
+
     for (const node of filteredData.nodes) {
       const prev = prevPositions.get(node.id)
       if (prev) {
@@ -206,9 +219,12 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
           if (nPos) { sumX += nPos.x; sumY += nPos.y; count++ }
         }
         if (count > 0) {
-          // Offset slightly with jitter so overlapping new nodes don't stack
           node.x = sumX / count + (Math.random() - 0.5) * 30
           node.y = sumY / count + (Math.random() - 0.5) * 30
+        } else if (meanCount > 0) {
+          // No neighbors (isolated node): place near the cluster center
+          node.x = meanX + (Math.random() - 0.5) * 60
+          node.y = meanY + (Math.random() - 0.5) * 60
         }
       }
     }
@@ -242,6 +258,26 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
     edgesEnter.append('title').text(d => d.type)
 
     const edges = edgesEnter.merge(edgeSelection)
+
+    // Edge labels — enter/update/exit (hidden by default, shown on node hover)
+    const edgeLabelSelection = svg.select('.edge-labels-layer')
+      .selectAll<SVGTextElement, GraphEdge>('text.edge-label')
+      .data(filteredData.edges, (d: GraphEdge) => d.id)
+
+    edgeLabelSelection.exit().remove()
+
+    const edgeLabelsEnter = edgeLabelSelection.enter().append('text')
+      .attr('class', 'edge-label')
+      .attr('text-anchor', 'middle')
+      .attr('font-family', "'JetBrains Mono', monospace")
+      .attr('font-size', '9px')
+      .attr('letter-spacing', '0.08em')
+      .attr('fill', 'var(--color-text-muted)')
+      .attr('pointer-events', 'none')
+      .attr('opacity', 0)
+      .text(d => d.type.replace(/_/g, ' '))
+
+    const edgeLabels = edgeLabelsEnter.merge(edgeLabelSelection)
 
     // Nodes — enter/update/exit
     const nodeSelection = svg.select('.nodes-layer')
@@ -328,10 +364,17 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
         .style('opacity', e =>
           (e.source as GraphNode).id === d.id || (e.target as GraphNode).id === d.id ? 0.8 : 0.05
         )
+      // Show edge labels for connected edges
+      svg.selectAll<SVGTextElement, GraphEdge>('text.edge-label')
+        .attr('opacity', e =>
+          (e.source as GraphNode).id === d.id || (e.target as GraphNode).id === d.id ? 0.7 : 0
+        )
     })
     .on('mouseout', () => {
       // When path is active, restore path dim instead of full opacity
       applyPathOrFullOpacity(svg, pathNodeIdsRef.current, pathEdgeIdsRef.current)
+      // Hide all edge labels
+      svg.selectAll('text.edge-label').attr('opacity', 0)
     })
 
     const nodes = nodesEnter.merge(nodeSelection)
@@ -348,13 +391,19 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
         .attr('x2', d => (d.target as GraphNode).x ?? 0)
         .attr('y2', d => (d.target as GraphNode).y ?? 0)
 
+      // Position edge labels at midpoint, offset slightly above the line
+      edgeLabels
+        .attr('x', d => (((d.source as GraphNode).x ?? 0) + ((d.target as GraphNode).x ?? 0)) / 2)
+        .attr('y', d => (((d.source as GraphNode).y ?? 0) + ((d.target as GraphNode).y ?? 0)) / 2 - 4)
+
       nodes.attr('transform', (d: GraphNode) => `translate(${d.x ?? 0},${d.y ?? 0})`)
     })
 
     // Only reheat simulation when nodes/edges actually changed;
     // year ticks that don't add/remove nodes skip the reheat to prevent jitter
     if (dataSetChanged) {
-      sim.alpha(0.05).restart()
+      // Higher alpha for new node additions so they settle visibly
+      sim.alpha(nodeSetChanged ? 0.15 : 0.05).restart()
     }
   }, [filteredData, arrowId])
 

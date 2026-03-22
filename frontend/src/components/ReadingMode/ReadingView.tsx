@@ -207,12 +207,21 @@ export function ReadingView({ onLogout }: Props) {
         </div>
 
         {/* Subgraph canvas */}
-        <GraphCanvas
-          data={subgraphData}
-          selectedId={selectedId}
-          onNodeClick={handleNodeClick}
-          progressMap={progressMap}
-        />
+        {subgraphData.nodes.length === 0 && !loading ? (
+          <div className="reading-empty">
+            <div className="reading-empty__label">No connections yet</div>
+            <div className="reading-empty__hint">
+              Use the sidebar to add concepts, claims, and thinkers linked to this text.
+            </div>
+          </div>
+        ) : (
+          <GraphCanvas
+            data={subgraphData}
+            selectedId={selectedId}
+            onNodeClick={handleNodeClick}
+            progressMap={progressMap}
+          />
+        )}
 
         {/* Detail panel */}
         <DetailPanel
