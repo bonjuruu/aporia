@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createNode, createEdge } from '../../api/client'
 import { NodeSearchInput } from '../Curation/NodeSearchInput'
 import { UpdateProgressForm } from '../Reading/UpdateProgressForm'
 import { SessionLog } from '../Reading/SessionLog'
-import { nodeDetailToGraphNode, isEdgeType } from '../../types'
+import { formatYear } from '../../utils/formatYear'
+import { isEdgeType, EDGE_TYPES } from '../../types'
+import { VALID_PAIRS, getValidEdgeTypesForPair, inferSourceTargetForText } from '../../types/edgePairs'
 import type { GraphNode, GraphEdge, NodeType, EdgeType, SearchResult, CreateNodeBody, ReadingProgress } from '../../types'
 
 interface Props {
@@ -23,26 +25,6 @@ const QUICK_ADD_TYPES: { value: NodeType; label: string }[] = [
   { value: 'THINKER', label: 'Thinker' },
 ]
 
-// Exhaustive mapping: every EdgeType must be classified as 'into_text' or 'from_node'.
-// Adding a new EdgeType to the EDGE_TYPES const without adding it here causes a compile error.
-const EDGE_DIRECTION: Record<EdgeType, 'into_text' | 'from_node'> = {
-  APPEARS_IN:   'into_text',
-  ARGUES:       'into_text',
-  COINED:       'into_text',
-  WROTE:        'into_text',
-  INFLUENCED:   'from_node',
-  REFUTES:      'from_node',
-  SUPPORTS:     'from_node',
-  QUALIFIES:    'from_node',
-  BUILDS_ON:    'from_node',
-  DERIVES_FROM: 'from_node',
-  RESPONDS_TO:  'from_node',
-}
-const EDGE_TYPES_INTO_TEXT = new Set(
-  (Object.keys(EDGE_DIRECTION) as EdgeType[]).filter(k => EDGE_DIRECTION[k] === 'into_text')
-)
-const ALL_EDGE_TYPES = Object.keys(EDGE_DIRECTION) as EdgeType[]
-
 export function ReadingSidebar({ textId, textTitle, textYear, textDescription, onNodeCreated, onEdgeCreated, progress, onProgressUpdated }: Props) {
   const [addType, setAddType] = useState<NodeType>('CONCEPT')
   const [addName, setAddName] = useState('')
@@ -55,6 +37,24 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
   const [linkingEdge, setLinkingEdge] = useState(false)
   const [edgeError, setEdgeError] = useState<string | null>(null)
 
+  // Filter edge types based on selected node type + TEXT
+  const validEdgeTypes = useMemo(() => {
+    if (!edgeTarget) {
+      // Only TEXT known — show types where TEXT is on either side
+      return EDGE_TYPES.filter(et =>
+        VALID_PAIRS[et].some(([s, t]) => s === 'TEXT' || t === 'TEXT')
+      )
+    }
+    return getValidEdgeTypesForPair('TEXT', edgeTarget.type)
+  }, [edgeTarget])
+
+  // Auto-select first valid type when list changes
+  useEffect(() => {
+    if (validEdgeTypes.length > 0 && !validEdgeTypes.includes(edgeType)) {
+      setEdgeType(validEdgeTypes[0])
+    }
+  }, [validEdgeTypes, edgeType])
+
   async function handleCreateNode() {
     if (!addName.trim() || creating) return
     setCreating(true)
@@ -66,14 +66,15 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
         : addType === 'CONCEPT'
           ? { type: 'CONCEPT', name: addName, ...base }
           : { type: 'THINKER', name: addName, ...base }
-      const detail = await createNode(body)
-      onNodeCreated(nodeDetailToGraphNode(detail))
+      const node = await createNode(body)
+      onNodeCreated(node)
       // Auto-link the new node to the current text with a type-appropriate edge
       const autoEdgeType: EdgeType = addType === 'THINKER' ? 'WROTE' : 'APPEARS_IN'
       try {
+        const { source, target } = inferSourceTargetForText(autoEdgeType, addType, textId, node.id)
         const edge = await createEdge({
-          source: detail.id,
-          target: textId,
+          source,
+          target,
           type: autoEdgeType,
           sourceTextId: textId,
         })
@@ -91,17 +92,14 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
   }
 
   async function handleLinkEdge() {
-    if (linkingEdge) return
+    if (linkingEdge || !edgeTarget) return
     setEdgeError(null)
-    if (!edgeTarget) return
     setLinkingEdge(true)
     try {
-      // For "into text" edge types, the linked node is the source and this text is the target.
-      // For other types, the linked node is the target (e.g. this text INFLUENCED the node).
-      const intoText = EDGE_TYPES_INTO_TEXT.has(edgeType)
+      const { source, target } = inferSourceTargetForText(edgeType, edgeTarget.type, textId, edgeTarget.id)
       const edge = await createEdge({
-        source: intoText ? edgeTarget.id : textId,
-        target: intoText ? textId : edgeTarget.id,
+        source,
+        target,
         type: edgeType,
         sourceTextId: textId,
       })
@@ -114,6 +112,13 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
     }
   }
 
+  // Preview direction
+  const preview = edgeTarget
+    ? inferSourceTargetForText(edgeType, edgeTarget.type, textId, edgeTarget.id)
+    : null
+  const previewFromLabel = preview?.source === textId ? textTitle : edgeTarget?.label
+  const previewToLabel = preview?.target === textId ? textTitle : edgeTarget?.label
+
   return (
     <div className="reading-sidebar">
       {/* Text metadata */}
@@ -123,7 +128,7 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
           {textTitle}
         </h2>
         {textYear != null && (
-          <div className="meta-label mt-2">{textYear}</div>
+          <div className="meta-label mt-2">{formatYear(textYear)}</div>
         )}
         {textDescription && (
           <div className="content-text mt-2">{textDescription}</div>
@@ -196,12 +201,12 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
       {/* Divider */}
       <div className="sidebar-divider" />
 
-      {/* Quick link edge to this text */}
+      {/* Link edge to this text */}
       <div>
-        <div className="meta-label sidebar-section__heading">Link Node to This Text</div>
+        <div className="meta-label sidebar-section__heading">Link to This Text</div>
 
         <label className="meta-label sidebar-field-label" htmlFor="sidebar-edge-target">
-          Target Node
+          Node
         </label>
         <div className="sidebar-field-input">
           <NodeSearchInput
@@ -213,7 +218,7 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
         </div>
 
         <label className="meta-label sidebar-field-label" htmlFor="sidebar-edge-type">
-          Edge Type
+          Relationship
         </label>
         <select
           id="sidebar-edge-type"
@@ -221,10 +226,18 @@ export function ReadingSidebar({ textId, textTitle, textYear, textDescription, o
           value={edgeType}
           onChange={e => { if (isEdgeType(e.target.value)) setEdgeType(e.target.value) }}
         >
-          {ALL_EDGE_TYPES.map(t => (
+          {validEdgeTypes.map(t => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
+
+        {preview && previewFromLabel && previewToLabel && (
+          <div className="edge-direction-preview">
+            <span className="edge-direction-preview__label">{previewFromLabel}</span>
+            <span className="edge-direction-preview__arrow">{edgeType} &rarr;</span>
+            <span className="edge-direction-preview__label">{previewToLabel}</span>
+          </div>
+        )}
 
         {edgeError && (
           <div className="inline-error" role="alert">{edgeError}</div>
