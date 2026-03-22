@@ -24,7 +24,7 @@ const ALL_TYPES = new Set<NodeType>(NODE_TYPES)
 
 function GraphView({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate()
-  const { data, loading, error, addNode, addEdge, refetchGraph } = useGraph()
+  const { data, loading, error, addNode, addEdge, removeNode, removeEdge, refetchGraph } = useGraph()
   const { progressList, progressMap } = useProgress()
   const { pathData, fromId: pathFromId, loading: pathLoading, error: pathError, findPath, clearPath } = usePath()
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -77,6 +77,15 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
     setEdgeSourceNode(sourceNode)
     setAddEdgeOpen(true)
   }, [])
+
+  const handleNodeDeleted = useCallback((nodeId: string) => {
+    removeNode(nodeId)
+    setSelectedId(null)
+  }, [removeNode])
+
+  const handleEdgeDeleted = useCallback((edgeId: string) => {
+    removeEdge(edgeId)
+  }, [removeEdge])
 
   const handleReadText = useCallback((textId: string) => {
     navigate(`/reading/${textId}`)
@@ -223,6 +232,8 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
         onNodeClick={handleNodeClickById}
         onAddEdge={handleAddEdge}
         onNodeUpdated={refetchGraph}
+        onNodeDeleted={handleNodeDeleted}
+        onEdgeDeleted={handleEdgeDeleted}
         onReadText={handleReadText}
         onOpenVault={handleOpenVault}
         escapeDisabled={addNodeOpen || addEdgeOpen || vaultOpen || readingPanelOpen || pathQueryOpen}
@@ -245,7 +256,7 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
       <AddNodeModal
         open={addNodeOpen}
         onClose={handleCloseAddNode}
-        onNodeCreated={addNode}
+        onNodeCreated={(node) => { addNode(node); setSelectedId(node.id) }}
         initialType={addNodeType}
       />
       <AddEdgeModal

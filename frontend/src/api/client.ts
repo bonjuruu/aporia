@@ -128,7 +128,7 @@ export function searchNodes(query: string, signal?: AbortSignal): Promise<Search
 }
 
 // Nodes — mutations
-export function createNode(body: CreateNodeBody): Promise<NodeDetail> {
+export function createNode(body: CreateNodeBody): Promise<GraphNode> {
   return request(`${BASE}/nodes`, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -139,6 +139,12 @@ export function updateNode(id: string, body: UpdateNodeBody): Promise<void> {
   return requestVoid(`${BASE}/nodes/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify(body),
+  })
+}
+
+export function deleteNode(id: string): Promise<void> {
+  return requestVoid(`${BASE}/nodes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
   })
 }
 
@@ -153,6 +159,19 @@ export function createEdge(body: {
   return request(`${BASE}/edges`, {
     method: 'POST',
     body: JSON.stringify(body),
+  })
+}
+
+export function updateEdge(id: string, body: { description?: string; sourceTextId?: string }): Promise<void> {
+  return requestVoid(`${BASE}/edges/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteEdge(id: string): Promise<void> {
+  return requestVoid(`${BASE}/edges/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
   })
 }
 

@@ -33,7 +33,23 @@ export function useGraph() {
       ? prev
       : { ...prev, edges: [...prev.edges, edge] }), [])
 
+  const removeNode = useCallback((nodeId: string) =>
+    setData(prev => ({
+      nodes: prev.nodes.filter(n => n.id !== nodeId),
+      edges: prev.edges.filter(e => {
+        const sourceId = typeof e.source === 'string' ? e.source : e.source.id
+        const targetId = typeof e.target === 'string' ? e.target : e.target.id
+        return sourceId !== nodeId && targetId !== nodeId
+      }),
+    })), [])
+
+  const removeEdge = useCallback((edgeId: string) =>
+    setData(prev => ({
+      ...prev,
+      edges: prev.edges.filter(e => e.id !== edgeId),
+    })), [])
+
   const refetchGraph = useCallback(() => setFetchCount(c => c + 1), [])
 
-  return { data, loading, error, addNode, addEdge, refetchGraph }
+  return { data, loading, error, addNode, addEdge, removeNode, removeEdge, refetchGraph }
 }

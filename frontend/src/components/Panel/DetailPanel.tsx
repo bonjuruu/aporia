@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { updateNode } from '../../api/client'
+import { updateNode, deleteNode, deleteEdge } from '../../api/client'
 import { useNode } from '../../hooks/useNode'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { ConnectionList } from './ConnectionList'
@@ -16,6 +16,8 @@ interface Props {
   onNodeClick: (nodeId: string) => void
   onAddEdge?: (sourceNode: { id: string; label: string; type: NodeType }) => void
   onNodeUpdated?: () => void
+  onNodeDeleted?: (nodeId: string) => void
+  onEdgeDeleted?: (edgeId: string) => void
   onReadText?: (textId: string) => void
   onOpenVault?: (textId: string, textLabel: string) => void
   escapeDisabled?: boolean
@@ -140,11 +142,13 @@ function TypeDetailSwitch({ data, editing, form, onFieldChange }: {
   }
 }
 
-function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText, onOpenVault }: {
+function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onNodeDeleted, onEdgeDeleted, onReadText, onOpenVault }: {
   data: NodeDetail
   onNodeClick: (nodeId: string) => void
   onAddEdge?: (sourceNode: { id: string; label: string; type: NodeType }) => void
   onNodeUpdated?: () => void
+  onNodeDeleted?: (nodeId: string) => void
+  onEdgeDeleted?: (edgeId: string) => void
   onReadText?: (textId: string) => void
   onOpenVault?: (textId: string, textLabel: string) => void
 }) {
@@ -152,6 +156,8 @@ function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText, 
   const [form, setForm] = useState<EditForm | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const nodeLabel = nodeDetailLabel(data)
 
@@ -192,6 +198,29 @@ function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText, 
       setSaveError(saveErr instanceof Error ? saveErr.message : 'Failed to save')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDeleteNode() {
+    setDeleting(true)
+    setSaveError(null)
+    try {
+      await deleteNode(data.id)
+      onNodeDeleted?.(data.id)
+    } catch (deleteErr) {
+      setSaveError(deleteErr instanceof Error ? deleteErr.message : 'Failed to delete')
+      setConfirmDelete(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleDeleteEdge(edgeId: string) {
+    try {
+      await deleteEdge(edgeId)
+      onEdgeDeleted?.(edgeId)
+    } catch (deleteEdgeErr) {
+      setSaveError(deleteEdgeErr instanceof Error ? deleteEdgeErr.message : 'Failed to delete edge')
     }
   }
 
@@ -238,6 +267,9 @@ function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText, 
         </>
       ) : (
         <>
+          {saveError && (
+            <div className="inline-error" role="alert">{saveError}</div>
+          )}
           <div className="panel-actions panel-actions--view">
             <button className="btn btn--sm" onClick={startEdit}>EDIT</button>
             {onAddEdge && (
@@ -255,14 +287,37 @@ function NodeContent({ data, onNodeClick, onAddEdge, onNodeUpdated, onReadText, 
               <button
                 className="btn btn--sm"
                 onClick={() => onReadText(data.id)}
-                style={{ marginLeft: 'auto', color: 'var(--color-node-text)' }}
+                style={{ color: 'var(--color-node-text)' }}
               >
                 READ
               </button>
             )}
           </div>
-          <ConnectionList label="Outgoing" connections={data.outgoing} onNodeClick={onNodeClick} />
-          <ConnectionList label="Incoming" connections={data.incoming} onNodeClick={onNodeClick} />
+          <ConnectionList label="Outgoing" connections={data.outgoing} onNodeClick={onNodeClick} onDeleteEdge={handleDeleteEdge} onEdgeUpdated={onNodeUpdated} />
+          <ConnectionList label="Incoming" connections={data.incoming} onNodeClick={onNodeClick} onDeleteEdge={handleDeleteEdge} onEdgeUpdated={onNodeUpdated} />
+          <div className="panel-danger-zone">
+            {confirmDelete ? (
+              <span className="panel-danger-zone__confirm">
+                <span className="meta-label">Delete this node?</span>
+                <button className="panel-danger-zone__trigger" onClick={() => setConfirmDelete(false)} disabled={deleting}>cancel</button>
+                <button
+                  className="panel-danger-zone__trigger"
+                  onClick={handleDeleteNode}
+                  disabled={deleting}
+                  style={{ opacity: 1, color: 'var(--color-node-claim)' }}
+                >
+                  {deleting ? 'deleting...' : 'confirm'}
+                </button>
+              </span>
+            ) : (
+              <button
+                className="panel-danger-zone__trigger"
+                onClick={() => setConfirmDelete(true)}
+              >
+                delete node
+              </button>
+            )}
+          </div>
         </>
       )}
     </div>
@@ -279,7 +334,7 @@ function PanelSkeleton() {
   )
 }
 
-export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpdated, onReadText, onOpenVault, escapeDisabled }: Props) {
+export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpdated, onNodeDeleted, onEdgeDeleted, onReadText, onOpenVault, escapeDisabled }: Props) {
   const { data, loading, error, refetch } = useNode(nodeId)
   const panelRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<Element | null>(null)
@@ -308,6 +363,16 @@ export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpd
     onNodeUpdated?.()
   }
 
+  function handleNodeDeleted(nodeId: string) {
+    onNodeDeleted?.(nodeId)
+    onClose()
+  }
+
+  function handleEdgeDeleted(edgeId: string) {
+    onEdgeDeleted?.(edgeId)
+    refetch()
+  }
+
   return (
     <div ref={panelRef} tabIndex={-1} className={`detail-panel ${nodeId ? 'open' : ''}`} role="complementary" aria-label="Node detail">
       <div className="panel-header">
@@ -323,6 +388,8 @@ export function DetailPanel({ nodeId, onClose, onNodeClick, onAddEdge, onNodeUpd
           onNodeClick={onNodeClick}
           onAddEdge={onAddEdge}
           onNodeUpdated={handleNodeUpdated}
+          onNodeDeleted={handleNodeDeleted}
+          onEdgeDeleted={handleEdgeDeleted}
           onReadText={onReadText}
           onOpenVault={onOpenVault}
         />
