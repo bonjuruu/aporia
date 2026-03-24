@@ -137,11 +137,29 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
 
     colorsRef.current = getNodeColors()
 
+    const isMobile = width < 768
+    // On mobile, account for top bar (~120px) and bottom toolbar (~60px)
+    const topInset = isMobile ? 130 : 0
+    // Bottom: toolbar(60) + stats(20) + FAB(50) + slider(50) — reserve for worst case
+    const bottomInset = isMobile ? 170 : 0
+    const pad = 30 // padding from edges for labels
+    const visibleCenterY = topInset + (height - topInset - bottomInset) / 2
     simulationRef.current = d3.forceSimulation<GraphNode>()
-      .force('link', d3.forceLink<GraphNode, GraphEdge>().id(d => d.id).distance(120))
-      .force('charge', d3.forceManyBody().strength(-400))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide(20))
+      .force('link', d3.forceLink<GraphNode, GraphEdge>().id(d => d.id).distance(isMobile ? 80 : 120))
+      .force('charge', d3.forceManyBody().strength(isMobile ? -200 : -400))
+      .force('center', d3.forceCenter(width / 2, visibleCenterY))
+      .force('collision', d3.forceCollide(isMobile ? 16 : 20))
+    // On mobile, clamp nodes inside the visible area so nothing gets clipped
+    if (isMobile) {
+      const xMin = pad, xMax = width - pad
+      const yMin = topInset + pad, yMax = height - bottomInset - pad
+      simulationRef.current.force('bounds', () => {
+        for (const n of simulationRef.current!.nodes() as GraphNode[]) {
+          if (n.x != null) n.x = Math.max(xMin, Math.min(xMax, n.x))
+          if (n.y != null) n.y = Math.max(yMin, Math.min(yMax, n.y))
+        }
+      })
+    }
 
     return () => {
       simulationRef.current?.stop()
@@ -157,7 +175,24 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       const { width, height } = entries[0].contentRect
       const sim = simulationRef.current
       if (sim) {
-        sim.force('center', d3.forceCenter(width / 2, height / 2))
+        const mobile = width < 768
+        const topOff = mobile ? 130 : 0
+        const bottomOff = mobile ? 170 : 0
+        const p = 30
+        const centerY = topOff + (height - topOff - bottomOff) / 2
+        sim.force('center', d3.forceCenter(width / 2, centerY))
+        if (mobile) {
+          const xMin = p, xMax = width - p
+          const yMin = topOff + p, yMax = height - bottomOff - p
+          sim.force('bounds', () => {
+            for (const n of sim.nodes() as GraphNode[]) {
+              if (n.x != null) n.x = Math.max(xMin, Math.min(xMax, n.x))
+              if (n.y != null) n.y = Math.max(yMin, Math.min(yMax, n.y))
+            }
+          })
+        } else {
+          sim.force('bounds', null)
+        }
         sim.alpha(0.1).restart()
       }
     })
@@ -293,6 +328,16 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       .attr('aria-label', (d: GraphNode) => `${d.type} — ${d.label}`)
       .style('cursor', 'pointer')
 
+    // Invisible hit-area circle for better touch targets on mobile
+    const isMobileViewport = svgRef.current!.getBoundingClientRect().width < 768
+    if (isMobileViewport) {
+      nodesEnter.append('circle')
+        .attr('class', 'hit-area')
+        .attr('r', 22)
+        .attr('fill', 'transparent')
+        .attr('stroke', 'none')
+    }
+
     // Draw shape per node type (only for new nodes)
     nodesEnter.each(function(d) {
       const g = d3.select(this)
@@ -321,14 +366,24 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
           break
       }
 
+      // Truncate long labels — shorter on mobile
+      const mobile = isMobileViewport
+      const maxLen = mobile ? 18 : 28
+      const truncated = d.label.length > maxLen
+        ? d.label.slice(0, maxLen - 1).trimEnd() + '…'
+        : d.label
+      const fontSize = mobile ? '10px' : '11px'
+
       g.append('text')
-        .attr('y', 18)
+        .attr('y', 22)
         .attr('text-anchor', 'middle')
-        .attr('font-family', "'JetBrains Mono', monospace")
-        .attr('font-size', '10px')
-        .attr('fill', '#a09880')
+        .attr('font-family', "'EB Garamond', Georgia, serif")
+        .attr('font-size', fontSize)
+        .attr('font-weight', '400')
+        .attr('fill', color)
+        .attr('fill-opacity', 0.75)
         .attr('pointer-events', 'none')
-        .text(d.label)
+        .text(truncated)
     })
 
     // Bind drag + click + hover only on newly entered nodes.
@@ -405,6 +460,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       // Higher alpha for new node additions so they settle visibly
       sim.alpha(nodeSetChanged ? 0.15 : 0.05).restart()
     }
+
   }, [filteredData, arrowId])
 
   // Update selected ring without reheating simulation
@@ -413,7 +469,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
     const colors = colorsRef.current
     svg.select('.nodes-layer')
       .selectAll<SVGGElement, GraphNode>('g.node')
-      .select('circle, polygon, rect')
+      .select('circle:not(.hit-area):not(.progress-ring), polygon, rect')
       .attr('stroke-width', (d: GraphNode) => d.id === selectedId ? 1.5 : 0.5)
       .attr('stroke', (d: GraphNode) => d.id === selectedId ? '#e8e0d0' : (colors[d.type] ?? '#888'))
   }, [selectedId])

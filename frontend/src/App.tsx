@@ -193,8 +193,10 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
           <h1 className="app-title">Aporia</h1>
           <FilterBar activeTypes={activeTypes} onToggle={handleToggleType} />
         </div>
-        <div className="top-bar__group top-bar__group--right">
+        <div className="top-bar__search">
           <SearchBar onSelect={handleNodeClickById} />
+        </div>
+        <div className="top-bar__group top-bar__group--right">
           <button className="btn btn--sm" onClick={handleToggleTimeSlider}>
             {timeSliderActive ? 'TIMELINE ×' : 'TIMELINE'}
           </button>
