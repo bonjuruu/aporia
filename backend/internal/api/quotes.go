@@ -18,15 +18,14 @@ func NewQuoteHandler(quoteService *service.QuoteService) *QuoteHandler {
 }
 
 func (h *QuoteHandler) ListQuotes(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
 	textID := c.Query("textId")
 
-	quoteList, listErr := h.quoteService.List(c.Request.Context(), userID.(string), textID)
+	quoteList, listErr := h.quoteService.List(c.Request.Context(), userID, textID)
 	if listErr != nil {
 		response.HandleError(c, "failed to list quotes", listErr)
 		return
@@ -36,9 +35,8 @@ func (h *QuoteHandler) ListQuotes(c *gin.Context) {
 }
 
 func (h *QuoteHandler) CaptureQuote(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
@@ -48,7 +46,7 @@ func (h *QuoteHandler) CaptureQuote(c *gin.Context) {
 		return
 	}
 
-	quote, captureErr := h.quoteService.Capture(c.Request.Context(), userID.(string), req)
+	quote, captureErr := h.quoteService.Capture(c.Request.Context(), userID, req)
 	if captureErr != nil {
 		response.HandleError(c, "failed to capture quote", captureErr)
 		return
@@ -58,9 +56,8 @@ func (h *QuoteHandler) CaptureQuote(c *gin.Context) {
 }
 
 func (h *QuoteHandler) UpdateQuote(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
@@ -72,7 +69,7 @@ func (h *QuoteHandler) UpdateQuote(c *gin.Context) {
 		return
 	}
 
-	updateErr := h.quoteService.Update(c.Request.Context(), userID.(string), quoteID, req)
+	updateErr := h.quoteService.Update(c.Request.Context(), userID, quoteID, req)
 	if updateErr != nil {
 		response.HandleError(c, "failed to update quote", updateErr)
 		return
@@ -82,15 +79,14 @@ func (h *QuoteHandler) UpdateQuote(c *gin.Context) {
 }
 
 func (h *QuoteHandler) DeleteQuote(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
 	quoteID := c.Param("id")
 
-	deleteErr := h.quoteService.Delete(c.Request.Context(), userID.(string), quoteID)
+	deleteErr := h.quoteService.Delete(c.Request.Context(), userID, quoteID)
 	if deleteErr != nil {
 		response.HandleError(c, "failed to delete quote", deleteErr)
 		return
@@ -100,9 +96,8 @@ func (h *QuoteHandler) DeleteQuote(c *gin.Context) {
 }
 
 func (h *QuoteHandler) PromoteQuote(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
@@ -114,7 +109,7 @@ func (h *QuoteHandler) PromoteQuote(c *gin.Context) {
 		return
 	}
 
-	node, promoteErr := h.quoteService.Promote(c.Request.Context(), quoteID, userID.(string), req)
+	node, promoteErr := h.quoteService.Promote(c.Request.Context(), quoteID, userID, req)
 	if promoteErr != nil {
 		response.HandleError(c, "failed to promote quote", promoteErr)
 		return

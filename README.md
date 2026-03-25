@@ -166,3 +166,58 @@ PUT  /api/progress/:textId   # Update progress (chapter, session note)
 GET /api/annotations            # All annotations for current user
 PUT /api/annotations/:nodeId    # Upsert stance + notes on a node
 ```
+
+## Deployment
+
+The app deploys as a single Docker container — the Go backend serves the built frontend as static files. No separate frontend host needed.
+
+### Prerequisites
+
+- [Fly.io CLI](https://fly.io/docs/flyctl/install/) (`brew install flyctl`)
+- A [Neo4j AuraDB](https://console.neo4j.io) free instance (200K nodes, no credit card)
+
+### Steps
+
+1. **Create AuraDB instance** at https://console.neo4j.io. Save the connection URI and password — they're only shown once.
+
+2. **Launch the Fly app:**
+
+```bash
+fly auth login
+fly launch --no-deploy
+```
+
+3. **Set production secrets:**
+
+```bash
+fly secrets set \
+  NEO4J_URI="neo4j+s://xxxx.databases.neo4j.io" \
+  NEO4J_USERNAME="neo4j" \
+  NEO4J_PASSWORD="<your-auradb-password>" \
+  JWT_SECRET="$(openssl rand -hex 32)" \
+  COOKIE_SECURE="true" \
+  ALLOW_ORIGIN="https://<your-app-name>.fly.dev" \
+  GIN_MODE="release"
+```
+
+4. **Deploy:**
+
+```bash
+fly deploy
+```
+
+The Dockerfile builds the frontend, compiles the Go backend, and packages everything into a minimal Alpine image. Migrations run automatically on startup.
+
+### Custom Domain
+
+You get `https://<app-name>.fly.dev` with auto-SSL for free. For a custom domain:
+
+```bash
+fly certs add your-domain.com
+```
+
+Then add the DNS records Fly provides and update `ALLOW_ORIGIN` to match.
+
+### AuraDB Free Tier Note
+
+The free tier pauses after 3 days of no queries. If that happens, resume it from the AuraDB console — takes about a minute. To prevent pauses, set up a health check or cron that pings the database periodically.

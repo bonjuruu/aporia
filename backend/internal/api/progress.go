@@ -18,13 +18,12 @@ func NewProgressHandler(progressService *service.ProgressService) *ProgressHandl
 }
 
 func (h *ProgressHandler) ListProgress(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
-	progressList, listErr := h.progressService.List(c.Request.Context(), userID.(string))
+	progressList, listErr := h.progressService.List(c.Request.Context(), userID)
 	if listErr != nil {
 		response.HandleError(c, "failed to list reading progress", listErr)
 		return
@@ -34,15 +33,14 @@ func (h *ProgressHandler) ListProgress(c *gin.Context) {
 }
 
 func (h *ProgressHandler) GetProgress(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
 	textID := c.Param("textId")
 
-	progress, getErr := h.progressService.Get(c.Request.Context(), userID.(string), textID)
+	progress, getErr := h.progressService.Get(c.Request.Context(), userID, textID)
 	if getErr != nil {
 		response.HandleError(c, "failed to get reading progress", getErr)
 		return
@@ -52,9 +50,8 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 }
 
 func (h *ProgressHandler) UpdateProgress(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
@@ -66,7 +63,7 @@ func (h *ProgressHandler) UpdateProgress(c *gin.Context) {
 		return
 	}
 
-	progress, updateErr := h.progressService.Update(c.Request.Context(), userID.(string), textID, req)
+	progress, updateErr := h.progressService.Update(c.Request.Context(), userID, textID, req)
 	if updateErr != nil {
 		response.HandleError(c, "failed to update reading progress", updateErr)
 		return

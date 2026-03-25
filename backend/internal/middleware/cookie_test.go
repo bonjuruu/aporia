@@ -18,7 +18,8 @@ func TestSetAuthCookie_ShouldSetBothCookies(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
 
 	cfg := CookieConfig{Secure: false}
-	SetAuthCookie(c, "jwt-token-value", cfg)
+	setCookieErr := SetAuthCookie(c, "jwt-token-value", cfg)
+	require.NoError(t, setCookieErr)
 
 	cookieList := recorder.Result().Cookies()
 	require.Len(t, cookieList, 2)
@@ -54,7 +55,8 @@ func TestSetAuthCookie_ShouldSetSecureFlagWhenConfigured(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
 
 	cfg := CookieConfig{Secure: true}
-	SetAuthCookie(c, "jwt-token-value", cfg)
+	setCookieErr := SetAuthCookie(c, "jwt-token-value", cfg)
+	require.NoError(t, setCookieErr)
 
 	for _, cookie := range recorder.Result().Cookies() {
 		assert.True(t, cookie.Secure, "cookie %s should have Secure flag", cookie.Name)
@@ -83,9 +85,11 @@ func TestClearAuthCookie_ShouldExpireBothCookies(t *testing.T) {
 func TestGenerateCSRFToken_ShouldReturnUniqueTokens(t *testing.T) {
 	t.Parallel()
 
-	tokenA := generateCSRFToken()
-	tokenB := generateCSRFToken()
+	tokenA, tokenAErr := generateCSRFToken()
+	tokenB, tokenBErr := generateCSRFToken()
 
+	require.NoError(t, tokenAErr)
+	require.NoError(t, tokenBErr)
 	assert.Len(t, tokenA, 32, "CSRF token should be 32 hex chars")
 	assert.NotEqual(t, tokenA, tokenB, "consecutive tokens should be unique")
 }

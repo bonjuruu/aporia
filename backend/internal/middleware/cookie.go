@@ -3,6 +3,7 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,12 +20,16 @@ type CookieConfig struct {
 	Secure bool
 }
 
-func SetAuthCookie(c *gin.Context, token string, cfg CookieConfig) {
+func SetAuthCookie(c *gin.Context, token string, cfg CookieConfig) error {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(AuthCookieName, token, cookieMaxAge, "/api", "", cfg.Secure, true)
 
-	csrfToken := generateCSRFToken()
+	csrfToken, generateCSRFTokenErr := generateCSRFToken()
+	if generateCSRFTokenErr != nil {
+		return fmt.Errorf("failed to generate CSRF token: %w", generateCSRFTokenErr)
+	}
 	c.SetCookie(CSRFCookieName, csrfToken, cookieMaxAge, "/", "", cfg.Secure, false)
+	return nil
 }
 
 func ClearAuthCookie(c *gin.Context, cfg CookieConfig) {
@@ -33,10 +38,10 @@ func ClearAuthCookie(c *gin.Context, cfg CookieConfig) {
 	c.SetCookie(CSRFCookieName, "", -1, "/", "", cfg.Secure, false)
 }
 
-func generateCSRFToken() string {
+func generateCSRFToken() (string, error) {
 	b := make([]byte, 16)
 	if _, readErr := rand.Read(b); readErr != nil {
-		panic("failed to generate CSRF token: " + readErr.Error())
+		return "", readErr
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }

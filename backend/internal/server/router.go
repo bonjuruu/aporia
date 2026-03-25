@@ -1,6 +1,10 @@
 package server
 
 import (
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/bonjuruu/aporia/internal/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -35,6 +39,10 @@ func NewRouter(h Handlers, jwtSecret []byte, allowOrigin string) *gin.Engine {
 		AllowHeaders:     []string{"Content-Type", "Authorization", middleware.CSRFHeaderName},
 		AllowCredentials: true,
 	}))
+
+	r.GET("/healthz", func(c *gin.Context) {
+		c.String(200, "ok")
+	})
 
 	r.StaticFile("/api/docs/openapi.yaml", "./api/openapi.yaml")
 	r.GET("/api/docs", func(c *gin.Context) {
@@ -81,6 +89,18 @@ func NewRouter(h Handlers, jwtSecret []byte, allowOrigin string) *gin.Engine {
 		protected.GET("/progress", h.Progress.ListProgress)
 		protected.GET("/progress/:textId", h.Progress.GetProgress)
 		protected.PUT("/progress/:textId", h.Progress.UpdateProgress)
+	}
+
+	if _, statErr := os.Stat("./static/index.html"); statErr == nil {
+		r.Static("/assets", "./static/assets")
+		r.StaticFile("/favicon.ico", "./static/favicon.ico")
+		r.NoRoute(func(c *gin.Context) {
+			if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+				return
+			}
+			c.File("./static/index.html")
+		})
 	}
 
 	return r

@@ -33,7 +33,7 @@ func Auth(jwtSecret []byte) gin.HandlerFunc {
 		}
 
 		token, parseErr := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			if t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 				return nil, errors.New("unexpected signing method")
 			}
 			return jwtSecret, nil

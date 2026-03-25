@@ -39,7 +39,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	middleware.SetAuthCookie(c, token, h.cookieConfig)
+	if setCookieErr := middleware.SetAuthCookie(c, token, h.cookieConfig); setCookieErr != nil {
+		response.RespondError(c, http.StatusInternalServerError, "internal server error")
+		return
+	}
 	response.RespondStatus(c, http.StatusCreated, "registered")
 }
 
@@ -56,7 +59,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	middleware.SetAuthCookie(c, token, h.cookieConfig)
+	if setCookieErr := middleware.SetAuthCookie(c, token, h.cookieConfig); setCookieErr != nil {
+		response.RespondError(c, http.StatusInternalServerError, "internal server error")
+		return
+	}
 	response.RespondStatus(c, http.StatusOK, "authenticated")
 }
 
@@ -66,13 +72,12 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetMe(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
-	user, getUserErr := h.authService.GetUser(c.Request.Context(), userID.(string))
+	user, getUserErr := h.authService.GetUser(c.Request.Context(), userID)
 	if getUserErr != nil {
 		var appErr *apperror.AppError
 		if errors.As(getUserErr, &appErr) && appErr.Status == http.StatusNotFound {
@@ -88,13 +93,12 @@ func (h *AuthHandler) GetMe(c *gin.Context) {
 }
 
 func (h *AuthHandler) GetAnnotations(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
-	annotationList, getByUserIDErr := h.annotationService.GetByUserID(c.Request.Context(), userID.(string))
+	annotationList, getByUserIDErr := h.annotationService.GetByUserID(c.Request.Context(), userID)
 	if getByUserIDErr != nil {
 		response.HandleError(c, "failed to get annotations", getByUserIDErr)
 		return
@@ -104,9 +108,8 @@ func (h *AuthHandler) GetAnnotations(c *gin.Context) {
 }
 
 func (h *AuthHandler) UpsertAnnotation(c *gin.Context) {
-	userID, exists := c.Get("userID")
-	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+	userID, ok := requireUserID(c)
+	if !ok {
 		return
 	}
 
@@ -118,7 +121,7 @@ func (h *AuthHandler) UpsertAnnotation(c *gin.Context) {
 		return
 	}
 
-	if upsertErr := h.annotationService.Upsert(c.Request.Context(), userID.(string), nodeID, req); upsertErr != nil {
+	if upsertErr := h.annotationService.Upsert(c.Request.Context(), userID, nodeID, req); upsertErr != nil {
 		response.HandleError(c, "failed to upsert annotation", upsertErr)
 		return
 	}

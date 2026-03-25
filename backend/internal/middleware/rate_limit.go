@@ -9,11 +9,12 @@ import (
 )
 
 type ipLimiter struct {
-	mu      sync.Mutex
-	entries map[string]*bucket
-	rate    float64
-	burst   int
-	done    chan struct{}
+	mu       sync.Mutex
+	entries  map[string]*bucket
+	rate     float64
+	burst    int
+	done     chan struct{}
+	stopOnce sync.Once
 }
 
 type bucket struct {
@@ -80,6 +81,10 @@ func (l *ipLimiter) cleanup() {
 			return
 		}
 	}
+}
+
+func (l *ipLimiter) Stop() {
+	l.stopOnce.Do(func() { close(l.done) })
 }
 
 // RateLimit returns a middleware that limits requests per IP.
