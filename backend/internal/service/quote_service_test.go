@@ -353,9 +353,9 @@ func TestQuoteService_Promote(t *testing.T) {
 			Content: "The unexamined life is not worth living.",
 		}
 
-		quoteStore.On("Promote", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.MatchedBy(func(p map[string]any) bool { return true })).
+		quoteStore.On("Promote", ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.MatchedBy(func(p map[string]any) bool { return true })).
 			Run(func(args mock.Arguments) {
-				props := args.Get(3).(map[string]any)
+				props := args.Get(4).(map[string]any)
 				assert.NotEmpty(t, props["id"])
 				assert.Equal(t, "The unexamined life is not worth living.", props["content"])
 				assert.Equal(t, "", props["notes"])
@@ -384,9 +384,9 @@ func TestQuoteService_Promote(t *testing.T) {
 			Type:  models.NodeTypeClaim,
 		}
 
-		quoteStore.On("Promote", ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.MatchedBy(func(p map[string]any) bool { return true })).
+		quoteStore.On("Promote", ctx, "b2c3d4e5-f6a7-8901-bcde-f12345678901", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", mock.MatchedBy(func(p map[string]any) bool { return true })).
 			Run(func(args mock.Arguments) {
-				props := args.Get(3).(map[string]any)
+				props := args.Get(4).(map[string]any)
 				assert.NotEmpty(t, props["id"])
 				assert.Equal(t, "The unexamined life is not worth living.", props["content"])
 				assert.Equal(t, "", props["notes"])

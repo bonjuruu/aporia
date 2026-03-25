@@ -29,7 +29,7 @@ func NewAuthHandler(authService *service.AuthService, annotationService *service
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req request.RegisterRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -49,7 +49,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req request.LoginRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *AuthHandler) UpsertAnnotation(c *gin.Context) {
 
 	var req request.AnnotationRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 

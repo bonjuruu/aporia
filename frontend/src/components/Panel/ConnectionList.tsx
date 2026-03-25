@@ -15,6 +15,7 @@ function ConnectionRow({ conn, onNodeClick, onDeleteEdge, onEdgeUpdated }: {
   const [editDesc, setEditDesc] = useState('')
   const [editSourceText, setEditSourceText] = useState<SearchResult | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const hasDetails = !!(conn.edge.description || conn.edge.sourceTextTitle)
 
@@ -37,6 +38,7 @@ function ConnectionRow({ conn, onNodeClick, onDeleteEdge, onEdgeUpdated }: {
 
   async function handleSave() {
     setSaving(true)
+    setSaveError(null)
     try {
       await updateEdge(conn.edge.id, {
         description: editDesc || undefined,
@@ -44,8 +46,8 @@ function ConnectionRow({ conn, onNodeClick, onDeleteEdge, onEdgeUpdated }: {
       })
       setEditing(false)
       onEdgeUpdated?.()
-    } catch {
-      // keep edit mode open
+    } catch (updateEdgeErr) {
+      setSaveError(updateEdgeErr instanceof Error ? updateEdgeErr.message : 'Failed to save')
     } finally {
       setSaving(false)
     }
@@ -126,6 +128,7 @@ function ConnectionRow({ conn, onNodeClick, onDeleteEdge, onEdgeUpdated }: {
               filterType="TEXT"
             />
           </div>
+          {saveError && <div className="inline-error" role="alert" style={{ marginBottom: 8 }}>{saveError}</div>}
           <div className="conn-row__detail-actions">
             <button className="conn-row__action" onClick={() => setEditing(false)}>cancel</button>
             <button

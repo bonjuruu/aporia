@@ -37,7 +37,6 @@ export function usePath(): UsePathResult {
         } else {
           setPathData(data)
         }
-        setLoading(false)
       })
       .catch(fetchPathErr => {
         if (fetchPathErr instanceof DOMException && fetchPathErr.name === 'AbortError') return
@@ -45,7 +44,9 @@ export function usePath(): UsePathResult {
         setError(fetchPathErr instanceof Error ? fetchPathErr.message : 'Failed to find path')
         setPathData(null)
         setFromId(null)
-        setLoading(false)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
       })
   }, [])
 

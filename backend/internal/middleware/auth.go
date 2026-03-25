@@ -10,9 +10,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+const AuthMethodKey = "authMethod"
+
 func Auth(jwtSecret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tokenStr string
+		authMethod := "cookie"
 
 		// Primary: read from httpOnly cookie
 		if cookie, cookieErr := c.Cookie(AuthCookieName); cookieErr == nil && cookie != "" {
@@ -24,6 +27,7 @@ func Auth(jwtSecret []byte) gin.HandlerFunc {
 			header := c.GetHeader("Authorization")
 			if strings.HasPrefix(header, "Bearer ") {
 				tokenStr = strings.TrimPrefix(header, "Bearer ")
+				authMethod = "bearer"
 			}
 		}
 
@@ -57,6 +61,7 @@ func Auth(jwtSecret []byte) gin.HandlerFunc {
 		}
 
 		c.Set("userID", sub)
+		c.Set(AuthMethodKey, authMethod)
 		c.Next()
 	}
 }

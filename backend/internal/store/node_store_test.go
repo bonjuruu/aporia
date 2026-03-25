@@ -56,7 +56,7 @@ func TestNodeStore_GetAll(t *testing.T) {
 
 		record := &neo4j.Record{
 			Keys:   []string{"id", "label", "type", "year"},
-			Values: []any{"a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Plato", "Thinker", int64(-428)},
+			Values: []any{"a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Plato", "THINKER", int64(-428)},
 		}
 		neo4jKit.On("Collect", ctx, mock.MatchedBy(func(q string) bool {
 			return strings.Contains(q, "n:Thinker OR n:Concept OR n:Claim OR n:Text")
@@ -68,7 +68,7 @@ func TestNodeStore_GetAll(t *testing.T) {
 		assert.Len(t, nodeList, 1)
 		assert.Equal(t, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", nodeList[0].ID)
 		assert.Equal(t, "Plato", nodeList[0].Label)
-		assert.Equal(t, models.NodeType("Thinker"), nodeList[0].Type)
+		assert.Equal(t, models.NodeTypeThinker, nodeList[0].Type)
 		assert.Equal(t, -428, *nodeList[0].Year)
 		neo4jKit.AssertExpectations(t)
 	})

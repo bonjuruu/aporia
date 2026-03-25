@@ -42,7 +42,7 @@ func (h *NodeHandler) GetNode(c *gin.Context) {
 func (h *NodeHandler) CreateNode(c *gin.Context) {
 	var req request.CreateNodeRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h *NodeHandler) UpdateNode(c *gin.Context) {
 
 	var req request.UpdateNodeRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 

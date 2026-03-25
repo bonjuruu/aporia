@@ -18,14 +18,31 @@ interface Props {
 export function ContextMenu({ x, y, onSelect, onClose }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: x, top: y })
+  const [focusIndex, setFocusIndex] = useState(0)
 
   useEffect(() => {
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+    function handleKeyDown(e: KeyboardEvent) {
+      switch (e.key) {
+        case 'Escape':
+          onClose()
+          break
+        case 'ArrowDown':
+          e.preventDefault()
+          setFocusIndex(i => (i + 1) % NODE_TYPES.length)
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          setFocusIndex(i => (i - 1 + NODE_TYPES.length) % NODE_TYPES.length)
+          break
+        case 'Enter':
+          e.preventDefault()
+          onSelect(NODE_TYPES[focusIndex].value)
+          break
+      }
     }
-    document.addEventListener('keydown', handleEscape)
-    return () => document.removeEventListener('keydown', handleEscape)
-  }, [onClose])
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose, onSelect, focusIndex])
 
   // Clamp to viewport before paint so the menu never flickers at the unclamped position
   useLayoutEffect(() => {
@@ -53,11 +70,13 @@ export function ContextMenu({ x, y, onSelect, onClose }: Props) {
         onContextMenu={e => e.stopPropagation()}
       >
         <div className="context-menu__header">Add Node</div>
-        {NODE_TYPES.map(t => (
+        {NODE_TYPES.map((t, i) => (
           <button
             key={t.value}
-            className="context-menu__item"
+            className={`context-menu__item${i === focusIndex ? ' context-menu__item--focused' : ''}`}
             role="menuitem"
+            tabIndex={i === focusIndex ? 0 : -1}
+            ref={el => { if (i === focusIndex && el) el.focus() }}
             data-type={t.value}
             onClick={() => onSelect(t.value)}
           >

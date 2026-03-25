@@ -1,15 +1,8 @@
+import { formatDate } from '../../utils/formatDate'
 import type { SessionNote } from '../../types'
 
 interface Props {
   sessionNotes: SessionNote[]
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  } catch {
-    return iso
-  }
 }
 
 export function SessionLog({ sessionNotes }: Props) {

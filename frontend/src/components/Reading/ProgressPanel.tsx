@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
+import { formatDate } from '../../utils/formatDate'
 import type { ReadingProgress } from '../../types'
 
 interface Props {
   progressList: ReadingProgress[]
   onClose: () => void
-}
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  } catch {
-    return iso
-  }
 }
 
 function computeProgress(progress: ReadingProgress): number | null {
@@ -78,7 +71,7 @@ export function ProgressPanel({ progressList, onClose }: Props) {
                 )}
                 <div className="progress-entry__footer">
                   <span className="meta-label meta-label--status">
-                    {formatDate(progress.lastReadAt)}
+                    {formatDate(progress.lastReadAt, true)}
                   </span>
                   <button
                     className="btn btn--sm"

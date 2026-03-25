@@ -20,7 +20,7 @@ func NewEdgeHandler(service *service.EdgeService) *EdgeHandler {
 func (h *EdgeHandler) CreateEdge(c *gin.Context) {
 	var req request.CreateEdgeRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -38,7 +38,7 @@ func (h *EdgeHandler) UpdateEdge(c *gin.Context) {
 
 	var req request.UpdateEdgeRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 

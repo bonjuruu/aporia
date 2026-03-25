@@ -428,8 +428,20 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
     .on('mouseout', () => {
       // When path is active, restore path dim instead of full opacity
       applyPathOrFullOpacity(svg, pathNodeIdsRef.current, pathEdgeIdsRef.current)
-      // Hide all edge labels
-      svg.selectAll('text.edge-label').attr('opacity', 0)
+      // Restore edge labels: show path edge labels if path active, hide all otherwise
+      const pathEdges = pathEdgeIdsRef.current
+      if (pathEdges && pathEdges.size > 0) {
+        svg.selectAll<SVGTextElement, GraphEdge>('text.edge-label')
+          .attr('opacity', e => {
+            const srcId = (e.source as GraphNode).id
+            const tgtId = (e.target as GraphNode).id
+            const edgeKey = `${srcId}-${tgtId}`
+            const edgeKeyRev = `${tgtId}-${srcId}`
+            return pathEdges.has(edgeKey) || pathEdges.has(edgeKeyRev) ? 0.7 : 0
+          })
+      } else {
+        svg.selectAll('text.edge-label').attr('opacity', 0)
+      }
     })
 
     const nodes = nodesEnter.merge(nodeSelection)

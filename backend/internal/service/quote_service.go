@@ -116,7 +116,7 @@ func (s *QuoteService) Promote(ctx context.Context, quoteID string, userID strin
 	id := uuid.New().String()
 	props["id"] = id
 
-	node, promoteErr := s.quoteStore.Promote(ctx, quoteID, label, props)
+	node, promoteErr := s.quoteStore.Promote(ctx, userID, quoteID, label, props)
 	if promoteErr != nil {
 		slog.Error("failed to promote quote", "quoteID", quoteID, "error", promoteErr)
 		return nil, promoteErr

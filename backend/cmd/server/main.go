@@ -20,6 +20,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cfg.CookieSecure && cfg.JWTSecret == "aporia-dev-secret-change-in-production" {
+		slog.Error("refusing to start: JWT_SECRET must be changed from the default when COOKIE_SECURE=true (production)")
+		os.Exit(1)
+	}
+
 	ctx := context.Background()
 
 	driver, newDriverErr := db.NewDriver(cfg.Neo4jURI, cfg.Neo4jUsername, cfg.Neo4jPassword)

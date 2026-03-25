@@ -59,7 +59,7 @@ func (h *ProgressHandler) UpdateProgress(c *gin.Context) {
 
 	var req request.UpdateProgressRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 

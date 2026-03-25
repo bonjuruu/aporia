@@ -44,16 +44,23 @@ function GraphView({ onLogout }: { onLogout: () => void }) {
   const [pathQueryOpen, setPathQueryOpen] = useState(false)
 
   const { minYear, maxYear } = useMemo(() => {
-    const years = data.nodes.map(n => n.year).filter((y): y is number => y != null)
-    if (years.length === 0) return { minYear: 0, maxYear: 0 }
-    return { minYear: Math.min(...years), maxYear: Math.max(...years) }
+    let min = Infinity
+    let max = -Infinity
+    for (const n of data.nodes) {
+      if (n.year != null) {
+        if (n.year < min) min = n.year
+        if (n.year > max) max = n.year
+      }
+    }
+    if (min === Infinity) return { minYear: 0, maxYear: 0 }
+    return { minYear: min, maxYear: max }
   }, [data])
 
   useEffect(() => {
     if (!playing) return
     const interval = setInterval(() => {
       setCurrentYear(y => {
-        if (y >= maxYear) { setPlaying(false); return y }
+        if (y >= maxYear) { requestAnimationFrame(() => setPlaying(false)); return y }
         return y + 1
       })
     }, 100)

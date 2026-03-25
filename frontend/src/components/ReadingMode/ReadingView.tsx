@@ -89,7 +89,7 @@ export function ReadingView({ onLogout }: Props) {
       })
 
     return () => controller.abort()
-  }, [id, fetchKey])
+  }, [fetchKey]) // eslint-disable-line react-hooks/exhaustive-deps -- fetchKey already encodes id
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     setSelectedId(node.id)

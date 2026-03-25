@@ -339,7 +339,7 @@ func TestQuoteStore_Promote(t *testing.T) {
 		neo4jKit := neo4jKitMock.NewNeo4jKit(t)
 		quoteStore := NewQuoteStore(neo4jKit)
 
-		result, promoteErr := quoteStore.Promote(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "INVALID", map[string]any{"id": "test"})
+		result, promoteErr := quoteStore.Promote(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "INVALID", map[string]any{"id": "test"})
 
 		assert.Nil(t, result)
 		appErr, ok := errors.AsType[*apperror.AppError](promoteErr)
@@ -361,9 +361,9 @@ func TestQuoteStore_Promote(t *testing.T) {
 
 		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
 			return strings.Contains(q, "CREATE (n:Claim)")
-		}), map[string]any{"quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(nil, errors.New("connection refused")).Once()
+		}), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(nil, errors.New("connection refused")).Once()
 
-		result, promoteErr := quoteStore.Promote(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", promoteProps)
+		result, promoteErr := quoteStore.Promote(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", promoteProps)
 
 		assert.Nil(t, result)
 		assert.ErrorContains(t, promoteErr, "failed to promote quote")
@@ -383,9 +383,9 @@ func TestQuoteStore_Promote(t *testing.T) {
 
 		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
 			return strings.Contains(q, "CREATE (n:Claim)")
-		}), map[string]any{"quote_id": "nonexistent-id", "props": promoteProps}).Return(nil, nil).Once()
+		}), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "quote_id": "nonexistent-id", "props": promoteProps}).Return(nil, nil).Once()
 
-		result, promoteErr := quoteStore.Promote(ctx, "nonexistent-id", "Claim", promoteProps)
+		result, promoteErr := quoteStore.Promote(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "nonexistent-id", "Claim", promoteProps)
 
 		assert.Nil(t, result)
 		appErr, ok := errors.AsType[*apperror.AppError](promoteErr)
@@ -416,9 +416,9 @@ func TestQuoteStore_Promote(t *testing.T) {
 		}
 		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
 			return strings.Contains(q, "CREATE (n:Claim)")
-		}), map[string]any{"quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(record, nil).Once()
+		}), map[string]any{"user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "quote_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "props": promoteProps}).Return(record, nil).Once()
 
-		result, promoteErr := quoteStore.Promote(ctx, "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", promoteProps)
+		result, promoteErr := quoteStore.Promote(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "Claim", promoteProps)
 
 		assert.NoError(t, promoteErr)
 		assert.Equal(t, "d4e5f6a7-b890-1234-abcd-ef5678901234", result.ID)

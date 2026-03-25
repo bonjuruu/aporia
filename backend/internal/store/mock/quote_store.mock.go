@@ -251,8 +251,8 @@ func (_c *QuoteStore_ListByUser_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // Promote provides a mock function for the type QuoteStore
-func (_mock *QuoteStore) Promote(ctx context.Context, quoteID string, label string, props map[string]any) (*response.GraphNode, error) {
-	ret := _mock.Called(ctx, quoteID, label, props)
+func (_mock *QuoteStore) Promote(ctx context.Context, userID string, quoteID string, label string, props map[string]any) (*response.GraphNode, error) {
+	ret := _mock.Called(ctx, userID, quoteID, label, props)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Promote")
@@ -260,18 +260,18 @@ func (_mock *QuoteStore) Promote(ctx context.Context, quoteID string, label stri
 
 	var r0 *response.GraphNode
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, map[string]any) (*response.GraphNode, error)); ok {
-		return returnFunc(ctx, quoteID, label, props)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, map[string]any) (*response.GraphNode, error)); ok {
+		return returnFunc(ctx, userID, quoteID, label, props)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, map[string]any) *response.GraphNode); ok {
-		r0 = returnFunc(ctx, quoteID, label, props)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, map[string]any) *response.GraphNode); ok {
+		r0 = returnFunc(ctx, userID, quoteID, label, props)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*response.GraphNode)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, map[string]any) error); ok {
-		r1 = returnFunc(ctx, quoteID, label, props)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, map[string]any) error); ok {
+		r1 = returnFunc(ctx, userID, quoteID, label, props)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -285,14 +285,15 @@ type QuoteStore_Promote_Call struct {
 
 // Promote is a helper method to define mock.On call
 //   - ctx context.Context
+//   - userID string
 //   - quoteID string
 //   - label string
 //   - props map[string]any
-func (_e *QuoteStore_Expecter) Promote(ctx interface{}, quoteID interface{}, label interface{}, props interface{}) *QuoteStore_Promote_Call {
-	return &QuoteStore_Promote_Call{Call: _e.mock.On("Promote", ctx, quoteID, label, props)}
+func (_e *QuoteStore_Expecter) Promote(ctx interface{}, userID interface{}, quoteID interface{}, label interface{}, props interface{}) *QuoteStore_Promote_Call {
+	return &QuoteStore_Promote_Call{Call: _e.mock.On("Promote", ctx, userID, quoteID, label, props)}
 }
 
-func (_c *QuoteStore_Promote_Call) Run(run func(ctx context.Context, quoteID string, label string, props map[string]any)) *QuoteStore_Promote_Call {
+func (_c *QuoteStore_Promote_Call) Run(run func(ctx context.Context, userID string, quoteID string, label string, props map[string]any)) *QuoteStore_Promote_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -306,15 +307,20 @@ func (_c *QuoteStore_Promote_Call) Run(run func(ctx context.Context, quoteID str
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 map[string]any
+		var arg3 string
 		if args[3] != nil {
-			arg3 = args[3].(map[string]any)
+			arg3 = args[3].(string)
+		}
+		var arg4 map[string]any
+		if args[4] != nil {
+			arg4 = args[4].(map[string]any)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -325,7 +331,7 @@ func (_c *QuoteStore_Promote_Call) Return(graphNode *response.GraphNode, err err
 	return _c
 }
 
-func (_c *QuoteStore_Promote_Call) RunAndReturn(run func(ctx context.Context, quoteID string, label string, props map[string]any) (*response.GraphNode, error)) *QuoteStore_Promote_Call {
+func (_c *QuoteStore_Promote_Call) RunAndReturn(run func(ctx context.Context, userID string, quoteID string, label string, props map[string]any) (*response.GraphNode, error)) *QuoteStore_Promote_Call {
 	_c.Call.Return(run)
 	return _c
 }

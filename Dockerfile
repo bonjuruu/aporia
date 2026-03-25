@@ -15,12 +15,14 @@ COPY backend/ ./
 RUN CGO_ENABLED=0 GOOS=linux go build -o aporia ./cmd/server/
 
 # Stage 3: Final image
-FROM alpine:latest
-RUN apk add --no-cache ca-certificates
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates && \
+    adduser -D -h /app appuser
 WORKDIR /app
 COPY --from=backend /build/aporia .
 COPY --from=backend /build/migrations/ ./migrations/
 COPY --from=backend /build/api/openapi.yaml ./api/openapi.yaml
 COPY --from=frontend /build/dist/ ./static/
+USER appuser
 EXPOSE 8080
 CMD ["./aporia"]

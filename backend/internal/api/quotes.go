@@ -42,7 +42,7 @@ func (h *QuoteHandler) CaptureQuote(c *gin.Context) {
 
 	var req request.CreateQuoteRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *QuoteHandler) UpdateQuote(c *gin.Context) {
 
 	var req request.UpdateQuoteRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *QuoteHandler) PromoteQuote(c *gin.Context) {
 
 	var req request.CreateNodeRequest
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		response.RespondError(c, http.StatusBadRequest, bindErr.Error())
+		response.RespondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 

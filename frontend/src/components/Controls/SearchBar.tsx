@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { NodeSearchInput } from '../Curation/NodeSearchInput'
 import type { SearchResult } from '../../types'
 
@@ -9,6 +9,10 @@ interface Props {
 export function SearchBar({ onSelect }: Props) {
   const [flash, setFlash] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    return () => clearTimeout(timerRef.current)
+  }, [])
 
   const handleChange = useCallback((result: SearchResult | null) => {
     if (result) {

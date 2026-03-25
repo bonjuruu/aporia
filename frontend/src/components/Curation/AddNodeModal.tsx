@@ -38,7 +38,9 @@ const EMPTY_FORM: FormState = {
 }
 
 function optionalYear(value: string): number | undefined {
-  return value !== '' ? Number(value) : undefined
+  if (value === '') return undefined
+  const n = Number(value)
+  return Number.isNaN(n) ? undefined : n
 }
 
 function buildRequestBody(type: NodeType, form: FormState): CreateNodeBody {

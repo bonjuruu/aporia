@@ -17,7 +17,7 @@ type QuoteStore interface {
 	ListByUser(ctx context.Context, userID string, textID string) ([]*models.Quote, error)
 	Update(ctx context.Context, userID string, id string, reaction *string, page *int) error
 	Delete(ctx context.Context, userID string, id string) error
-	Promote(ctx context.Context, quoteID string, label string, props map[string]any) (*response.GraphNode, error)
+	Promote(ctx context.Context, userID string, quoteID string, label string, props map[string]any) (*response.GraphNode, error)
 }
 
 type quoteStore struct {
@@ -182,13 +182,13 @@ func validPromoteLabel(label string) bool {
 	}
 }
 
-func (s *quoteStore) Promote(ctx context.Context, quoteID string, label string, props map[string]any) (*response.GraphNode, error) {
+func (s *quoteStore) Promote(ctx context.Context, userID string, quoteID string, label string, props map[string]any) (*response.GraphNode, error) {
 	if !validPromoteLabel(label) {
 		return nil, apperror.NewBadRequest("invalid node label: " + label)
 	}
 
 	query := fmt.Sprintf(`
-		MATCH (q:Quote {id: $quote_id})
+		MATCH (u:User {id: $user_id})-[:CAPTURED]->(q:Quote {id: $quote_id})
 		CREATE (n:%s)
 		SET n = $props
 		SET q.status = "promoted", q.promoted_node_id = n.id
@@ -199,6 +199,7 @@ func (s *quoteStore) Promote(ctx context.Context, quoteID string, label string, 
 	`, label)
 
 	record, singleErr := s.neo4jKit.Single(ctx, query, map[string]any{
+		"user_id":  userID,
 		"quote_id": quoteID,
 		"props":    props,
 	})

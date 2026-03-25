@@ -8,16 +8,16 @@ import (
 )
 
 // requireUserID extracts the authenticated user ID from the Gin context.
-// Returns the user ID and true on success, or writes a 401 response and returns false.
+// Returns the user ID and true on success, or aborts with 401 and returns false.
 func requireUserID(c *gin.Context) (string, bool) {
 	raw, exists := c.Get("userID")
 	if !exists {
-		response.RespondError(c, http.StatusUnauthorized, "not authenticated")
+		response.Abort(c, http.StatusUnauthorized, "not authenticated")
 		return "", false
 	}
 	userID, ok := raw.(string)
 	if !ok {
-		response.RespondError(c, http.StatusUnauthorized, "invalid user context")
+		response.Abort(c, http.StatusUnauthorized, "invalid user context")
 		return "", false
 	}
 	return userID, true

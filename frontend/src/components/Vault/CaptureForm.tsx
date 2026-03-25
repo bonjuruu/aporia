@@ -37,7 +37,7 @@ export function CaptureForm({ onCapture, preselectedTextId, preselectedTextLabel
       await onCapture({
         content: content.trim(),
         sourceTextId: sourceText.id,
-        ...(page !== '' ? { page: Number(page) } : {}),
+        ...(page !== '' && !Number.isNaN(Number(page)) ? { page: Number(page) } : {}),
         ...(reaction.trim() ? { reaction: reaction.trim() } : {}),
       })
       setContent('')

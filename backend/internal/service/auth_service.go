@@ -50,11 +50,11 @@ func (s *AuthService) Register(ctx context.Context, req request.RegisterRequest)
 
 	_, createErr := s.userStore.Create(ctx, id, req.Email, string(hash), createdAt)
 	if createErr != nil {
-		slog.Error("failed to register user", "email", req.Email, "error", createErr)
+		slog.Error("failed to register user", "error", createErr)
 		return "", fmt.Errorf("failed to create user: %w", createErr)
 	}
 
-	slog.Info("user registered", "id", id, "email", req.Email)
+	slog.Info("user registered", "id", id)
 	return s.generateToken(id)
 }
 

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 
 	"github.com/bonjuruu/aporia/internal/response"
@@ -16,6 +17,13 @@ func CSRF() gin.HandlerFunc {
 			return
 		}
 
+		// CSRF protection only applies to cookie-based auth. Bearer tokens are
+		// explicitly attached by the client and are not vulnerable to CSRF.
+		if method, _ := c.Get(AuthMethodKey); method == "bearer" {
+			c.Next()
+			return
+		}
+
 		csrfCookie, cookieErr := c.Cookie(CSRFCookieName)
 		if cookieErr != nil || csrfCookie == "" {
 			response.Abort(c, http.StatusForbidden, "missing CSRF token")
@@ -23,7 +31,7 @@ func CSRF() gin.HandlerFunc {
 		}
 
 		csrfHeader := c.GetHeader(CSRFHeaderName)
-		if csrfHeader == "" || csrfHeader != csrfCookie {
+		if csrfHeader == "" || subtle.ConstantTimeCompare([]byte(csrfHeader), []byte(csrfCookie)) != 1 {
 			response.Abort(c, http.StatusForbidden, "CSRF token mismatch")
 			return
 		}
