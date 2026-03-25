@@ -389,7 +389,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       }
 
       // Truncate long labels — shorter on mobile
-      const mobile = isMobileViewport
+      const mobile = isMobileRef.current
       const maxLen = mobile ? 18 : 28
       const truncated = d.label.length > maxLen
         ? d.label.slice(0, maxLen - 1).trimEnd() + '…'
