@@ -1,3 +1,14 @@
+DROP INDEX edge_responds_to_id IF EXISTS;
+DROP INDEX edge_derives_from_id IF EXISTS;
+DROP INDEX edge_builds_on_id IF EXISTS;
+DROP INDEX edge_qualifies_id IF EXISTS;
+DROP INDEX edge_supports_id IF EXISTS;
+DROP INDEX edge_refutes_id IF EXISTS;
+DROP INDEX edge_appears_in_id IF EXISTS;
+DROP INDEX edge_argues_id IF EXISTS;
+DROP INDEX edge_wrote_id IF EXISTS;
+DROP INDEX edge_coined_id IF EXISTS;
+DROP INDEX edge_influenced_id IF EXISTS;
 DROP INDEX nodeSearch IF EXISTS;
 DROP INDEX text_title IF EXISTS;
 DROP INDEX concept_name IF EXISTS;

@@ -15,12 +15,12 @@ const swaggerHTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <title>Aporia API</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.32.1/swagger-ui.css" integrity="sha384-F7uqyyVZgBbuOv+8gNy6ZGJB8Rf12CczPWm130Pxrau0cyZlj1Dl18cDOWpQSrGh" crossorigin="anonymous">
   <style>body { margin: 0; background: #1a1612; }</style>
 </head>
 <body>
   <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.32.1/swagger-ui-bundle.js" integrity="sha384-SlhRXPBpOIwNajIYH/STl3rsa6P/qCR82bZVQk1pDmWr/+Mh9g/RhaUJ1JBmM99R" crossorigin="anonymous"></script>
   <script>
     SwaggerUIBundle({
       url: "/api/docs/openapi.yaml",
@@ -33,6 +33,13 @@ const swaggerHTML = `<!DOCTYPE html>
 
 func NewRouter(h Handlers, jwtSecret []byte, allowOrigin string) *gin.Engine {
 	r := gin.Default()
+
+	// Trust Fly.io's client IP header so rate limiting uses the real IP behind the proxy.
+	// Locally (no proxy), ClientIP() falls back to the direct connection address.
+	if os.Getenv("FLY_APP_NAME") != "" {
+		r.TrustedPlatform = "Fly-Client-IP"
+	}
+
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{allowOrigin},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},

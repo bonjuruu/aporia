@@ -9,12 +9,14 @@ servers:
     description: Local development
 
 security:
+  - cookieAuth: []
   - bearerAuth: []
 
 paths:
   /api/auth/register:
     post:
       summary: Register a new user
+      description: Creates a new user account and sets an httpOnly JWT cookie.
       tags: [Auth]
       security: []
       requestBody:
@@ -25,11 +27,11 @@ paths:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
         "201":
-          description: User created and authenticated
+          description: User created and authenticated (JWT cookie set)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TokenResponse"
+                $ref: "#/components/schemas/StatusResponse"
         "400":
           description: Validation error
           content:
@@ -45,7 +47,8 @@ paths:
 
   /api/auth/login:
     post:
-      summary: Login and receive a JWT
+      summary: Login
+      description: Authenticates user and sets an httpOnly JWT cookie.
       tags: [Auth]
       security: []
       requestBody:
@@ -56,22 +59,30 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
-          description: JWT token
+          description: Authenticated (JWT cookie set)
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-                required:
-                  - token
+                $ref: "#/components/schemas/StatusResponse"
         "401":
           description: Invalid credentials
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /api/auth/logout:
+    post:
+      summary: Logout
+      description: Clears the JWT and CSRF cookies.
+      tags: [Auth]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
 
   /api/auth/me:
     get:
@@ -90,12 +101,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "404":
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
 
   /api/graph:
     get:
@@ -108,16 +113,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GraphData"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
 
   /api/graph/subgraph/{textId}:
     get:
-      summary: Get subgraph for reading mode (edges tagged to a specific text)
+      summary: Get subgraph for reading mode
       tags: [Graph]
       parameters:
         - name: textId
@@ -125,7 +124,6 @@ paths:
           required: true
           schema:
             type: string
-          description: The ID of the text node
       responses:
         "200":
           description: Subgraph data
@@ -133,12 +131,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GraphData"
-        "400":
-          description: Invalid request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
 
   /api/graph/path:
     get:
@@ -150,13 +142,11 @@ paths:
           required: true
           schema:
             type: string
-          description: Source node ID
         - name: to
           in: query
           required: true
           schema:
             type: string
-          description: Target node ID
       responses:
         "200":
           description: Path data (nodes and edges along the path)
@@ -165,7 +155,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GraphData"
         "400":
-          description: Invalid request (missing from or to)
+          description: Missing from or to parameter
           content:
             application/json:
               schema:
@@ -184,12 +174,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/GraphNode"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
     post:
       summary: Create a new node
       tags: [Nodes]
@@ -215,7 +199,7 @@ paths:
 
   /api/nodes/{id}:
     get:
-      summary: Get a single node with all its connections
+      summary: Get a single node with connections
       tags: [Nodes]
       parameters:
         - name: id
@@ -223,7 +207,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Node ID
       responses:
         "200":
           description: Node detail
@@ -237,12 +220,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
     put:
       summary: Update a node
       tags: [Nodes]
@@ -252,7 +229,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Node ID
       requestBody:
         required: true
         content:
@@ -281,7 +257,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Node ID
       responses:
         "200":
           description: Node deleted
@@ -289,12 +264,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusResponse"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
 
   /api/search:
     get:
@@ -306,7 +275,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Search query
       responses:
         "200":
           description: Matching nodes (max 20)
@@ -357,7 +325,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Edge ID
       requestBody:
         required: true
         content:
@@ -386,7 +353,6 @@ paths:
           required: true
           schema:
             type: string
-          description: Edge ID
       responses:
         "200":
           description: Edge deleted
@@ -394,12 +360,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusResponse"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
 
   /api/annotations:
     get:
@@ -414,18 +374,6 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UserAnnotation"
-        "401":
-          description: Not authenticated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
 
   /api/annotations/{nodeId}:
     put:
@@ -437,7 +385,6 @@ paths:
           required: true
           schema:
             type: string
-          description: The node ID to annotate
       requestBody:
         required: true
         content:
@@ -457,14 +404,200 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "401":
-          description: Not authenticated
+
+  /api/quotes:
+    get:
+      summary: List quotes for the current user
+      tags: [Quotes]
+      parameters:
+        - name: textId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional filter by source text ID
+      responses:
+        "200":
+          description: List of quotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Quote"
+    post:
+      summary: Capture a new quote
+      tags: [Quotes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuoteRequest"
+      responses:
+        "201":
+          description: Captured quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "400":
+          description: Validation error
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "500":
-          description: Internal server error
+
+  /api/quotes/{id}:
+    put:
+      summary: Update a quote's reaction or page
+      tags: [Quotes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuoteRequest"
+      responses:
+        "200":
+          description: Quote updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Quote not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a quote
+      tags: [Quotes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quote deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "404":
+          description: Quote not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/quotes/{id}/promote:
+    post:
+      summary: Promote a quote to a graph node
+      tags: [Quotes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Quote ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNodeRequest"
+      responses:
+        "201":
+          description: Promoted node
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphNode"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Quote not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/progress:
+    get:
+      summary: List reading progress for all texts
+      tags: [Progress]
+      responses:
+        "200":
+          description: List of reading progress entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReadingProgress"
+
+  /api/progress/{textId}:
+    get:
+      summary: Get reading progress for a specific text
+      tags: [Progress]
+      parameters:
+        - name: textId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reading progress (empty progress if none exists)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadingProgress"
+    put:
+      summary: Update reading progress for a text
+      tags: [Progress]
+      parameters:
+        - name: textId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProgressRequest"
+      responses:
+        "200":
+          description: Progress updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadingProgress"
+        "400":
+          description: Validation error
           content:
             application/json:
               schema:
@@ -472,10 +605,16 @@ paths:
 
 components:
   securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: aporia_token
+      description: httpOnly JWT cookie (primary auth method)
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: Bearer token fallback (Swagger UI, API clients). CSRF is not enforced for Bearer auth.
 
   schemas:
     NodeType:
@@ -497,6 +636,10 @@ components:
         - DERIVES_FROM
         - RESPONDS_TO
 
+    QuoteStatus:
+      type: string
+      enum: [raw, promoted]
+
     Stance:
       type: string
       enum: [agree, disagree, uncertain, unread]
@@ -504,9 +647,12 @@ components:
     Error:
       type: object
       properties:
+        status:
+          type: integer
         error:
           type: string
       required:
+        - status
         - error
 
     StatusResponse:
@@ -524,13 +670,13 @@ components:
           type: string
         email:
           type: string
-        created_at:
+        createdAt:
           type: string
           format: date-time
       required:
         - id
         - email
-        - created_at
+        - createdAt
 
     GraphNode:
       type: object
@@ -562,7 +708,9 @@ components:
           $ref: "#/components/schemas/EdgeType"
         description:
           type: string
-        source_text_id:
+        sourceTextId:
+          type: string
+        sourceTextTitle:
           type: string
       required:
         - id
@@ -622,19 +770,87 @@ components:
     UserAnnotation:
       type: object
       properties:
-        user_id:
+        userId:
           type: string
-        node_id:
+        nodeId:
           type: string
         stance:
           $ref: "#/components/schemas/Stance"
         notes:
           type: string
       required:
-        - user_id
-        - node_id
+        - userId
+        - nodeId
         - stance
         - notes
+
+    Quote:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        sourceTextId:
+          type: string
+        sourceTextTitle:
+          type: string
+        page:
+          type: integer
+          nullable: true
+        reaction:
+          type: string
+        status:
+          $ref: "#/components/schemas/QuoteStatus"
+        promotedNodeId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - content
+        - sourceTextId
+        - status
+        - createdAt
+
+    SessionNote:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date-time
+        chapter:
+          type: string
+        note:
+          type: string
+      required:
+        - date
+        - chapter
+
+    ReadingProgress:
+      type: object
+      properties:
+        textId:
+          type: string
+        textTitle:
+          type: string
+        chapter:
+          type: string
+        totalChapters:
+          type: integer
+          nullable: true
+        lastReadAt:
+          type: string
+          format: date-time
+        sessionNotes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionNote"
+      required:
+        - textId
+        - chapter
+        - lastReadAt
 
     RegisterRequest:
       type: object
@@ -645,6 +861,7 @@ components:
         password:
           type: string
           minLength: 8
+          maxLength: 72
       required:
         - email
         - password
@@ -668,22 +885,25 @@ components:
           $ref: "#/components/schemas/NodeType"
         name:
           type: string
-          description: Required for THINKER and CONCEPT types
+          description: Required for THINKER and CONCEPT
         title:
           type: string
-          description: Required for TEXT type
+          description: Required for TEXT
         content:
           type: string
-          description: Required for CLAIM type
+          description: Required for CLAIM
         description:
           type: string
         notes:
           type: string
-        born_year:
+        tradition:
+          type: string
+          description: THINKER only
+        bornYear:
           type: integer
           nullable: true
           description: THINKER only
-        died_year:
+        diedYear:
           type: integer
           nullable: true
           description: THINKER only
@@ -691,7 +911,7 @@ components:
           type: integer
           nullable: true
           description: CONCEPT and CLAIM only
-        published_year:
+        publishedYear:
           type: integer
           nullable: true
           description: TEXT only
@@ -701,6 +921,8 @@ components:
     UpdateNodeRequest:
       type: object
       properties:
+        type:
+          $ref: "#/components/schemas/NodeType"
         name:
           type: string
         title:
@@ -711,35 +933,36 @@ components:
           type: string
         notes:
           type: string
-        born_year:
+        tradition:
+          type: string
+        bornYear:
           type: integer
           nullable: true
-        died_year:
+        diedYear:
           type: integer
           nullable: true
         year:
           type: integer
           nullable: true
-        published_year:
+        publishedYear:
           type: integer
           nullable: true
+      required:
+        - type
 
     CreateEdgeRequest:
       type: object
       properties:
         source:
           type: string
-          description: Source node ID
         target:
           type: string
-          description: Target node ID
         type:
           $ref: "#/components/schemas/EdgeType"
         description:
           type: string
-        source_text_id:
+        sourceTextId:
           type: string
-          description: Optional text node ID for reading mode tagging
       required:
         - source
         - target
@@ -750,8 +973,46 @@ components:
       properties:
         description:
           type: string
-        source_text_id:
+        sourceTextId:
           type: string
+
+    CreateQuoteRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        sourceTextId:
+          type: string
+        page:
+          type: integer
+          minimum: 1
+        reaction:
+          type: string
+      required:
+        - content
+        - sourceTextId
+
+    UpdateQuoteRequest:
+      type: object
+      properties:
+        reaction:
+          type: string
+        page:
+          type: integer
+          minimum: 1
+
+    UpdateProgressRequest:
+      type: object
+      properties:
+        chapter:
+          type: string
+        totalChapters:
+          type: integer
+          minimum: 1
+        note:
+          type: string
+      required:
+        - chapter
 
     AnnotationRequest:
       type: object

@@ -12,7 +12,7 @@ WORKDIR /build
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o aporia ./cmd/server/
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o aporia ./cmd/server/
 
 # Stage 3: Final image
 FROM alpine:3.21

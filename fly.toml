@@ -3,12 +3,17 @@ primary_region = 'syd'
 
 [build]
 
+[env]
+  COOKIE_SECURE = 'true'
+  # Set via `fly secrets set`:
+  #   JWT_SECRET, NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, ALLOW_ORIGIN
+
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
 
 [[vm]]
   memory = '256mb'
