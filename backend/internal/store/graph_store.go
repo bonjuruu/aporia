@@ -86,8 +86,8 @@ func (s *graphStore) GetSubgraph(ctx context.Context, textID string) (*response.
 }
 
 func (s *graphStore) GetPath(ctx context.Context, fromID, toID string) (*response.GraphData, error) {
-	record, singleErr := s.neo4jKit.Single(ctx, `
-		MATCH path = shortestPath((a {id: $from_id})-[:INFLUENCED|COINED|WROTE|ARGUES|APPEARS_IN|REFUTES|SUPPORTS|QUALIFIES|BUILDS_ON|DERIVES_FROM|RESPONDS_TO*..15]-(b {id: $to_id}))
+	record, singleErr := s.neo4jKit.Single(ctx, fmt.Sprintf(`
+		MATCH path = shortestPath((a {id: $from_id})-[:%s*..15]-(b {id: $to_id}))`, models.CypherRelTypes())+`
 		RETURN [node in nodes(path) | {id: node.id, label: coalesce(node.name, node.title, node.content), type: toUpper(labels(node)[0]), year: coalesce(node.born_year, node.published_year, node.year)}] as nodes,
 			   [rel in relationships(path) | {id: rel.id, source: startNode(rel).id, target: endNode(rel).id, type: type(rel), description: rel.description, source_text_id: rel.source_text_id}] as edges
 	`, map[string]any{"from_id": fromID, "to_id": toID})

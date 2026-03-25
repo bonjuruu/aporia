@@ -56,8 +56,8 @@ export function AddEdgeModal({ open, onClose, onEdgeCreated, sourceNode }: Props
   const validTypes = useMemo(() => {
     if (fromNode && toNode) return getValidEdgeTypes(fromNode.type, toNode.type)
     if (fromNode) return getValidEdgeTypes(fromNode.type)
-    // Only TO known — show types where TO can be the target
-    if (toNode) return EDGE_TYPES.filter(et => VALID_PAIRS[et].some(([, t]) => t === toNode.type))
+    // Only TO known — show types where TO can appear in either position
+    if (toNode) return EDGE_TYPES.filter(et => VALID_PAIRS[et].some(([s, t]) => s === toNode.type || t === toNode.type))
     return [...EDGE_TYPES]
   }, [fromNode, toNode])
 

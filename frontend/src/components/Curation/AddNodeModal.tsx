@@ -4,7 +4,9 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { YearInput } from '../shared/YearInput'
 import { NODE_TYPES } from '../../types'
-import type { NodeType, CreateNodeBody, GraphNode } from '../../types'
+import { EMPTY_NODE_FORM, buildNodeRequestBody } from '../../utils/nodeForm'
+import type { NodeType, GraphNode } from '../../types'
+import type { NodeFormState } from '../../utils/nodeForm'
 
 interface Props {
   open: boolean
@@ -13,74 +15,9 @@ interface Props {
   initialType?: NodeType | null
 }
 
-interface FormState {
-  name: string
-  title: string
-  content: string
-  description: string
-  tradition: string
-  bornYear: string
-  diedYear: string
-  year: string
-  publishedYear: string
-}
-
-const EMPTY_FORM: FormState = {
-  name: '',
-  title: '',
-  content: '',
-  description: '',
-  tradition: '',
-  bornYear: '',
-  diedYear: '',
-  year: '',
-  publishedYear: '',
-}
-
-function optionalYear(value: string): number | undefined {
-  if (value === '') return undefined
-  const n = Number(value)
-  return Number.isNaN(n) ? undefined : n
-}
-
-function buildRequestBody(type: NodeType, form: FormState): CreateNodeBody {
-  switch (type) {
-    case 'THINKER':
-      return {
-        type,
-        name: form.name,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.tradition ? { tradition: form.tradition } : {}),
-        ...( form.bornYear !== '' ? { bornYear: optionalYear(form.bornYear) } : {}),
-        ...( form.diedYear !== '' ? { diedYear: optionalYear(form.diedYear) } : {}),
-      }
-    case 'CONCEPT':
-      return {
-        type,
-        name: form.name,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.year !== '' ? { year: optionalYear(form.year) } : {}),
-      }
-    case 'CLAIM':
-      return {
-        type,
-        content: form.content,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.year !== '' ? { year: optionalYear(form.year) } : {}),
-      }
-    case 'TEXT':
-      return {
-        type,
-        title: form.title,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.publishedYear !== '' ? { publishedYear: optionalYear(form.publishedYear) } : {}),
-      }
-  }
-}
-
 export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Props) {
   const [selectedType, setSelectedType] = useState<NodeType | null>(initialType ?? null)
-  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [form, setForm] = useState<NodeFormState>(EMPTY_NODE_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const trapRef = useFocusTrap(open)
@@ -97,7 +34,7 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
 
   const reset = useCallback(() => {
     setSelectedType(null)
-    setForm(EMPTY_FORM)
+    setForm(EMPTY_NODE_FORM)
     setError(null)
     setSubmitting(false)
   }, [])
@@ -108,7 +45,7 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
   }, [onClose, reset])
   useEscapeKey(open, handleClose)
 
-  function setField(field: keyof FormState, value: string) {
+  function setField(field: keyof NodeFormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -118,7 +55,7 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
     setError(null)
 
     try {
-      const node = await createNode(buildRequestBody(selectedType, form))
+      const node = await createNode(buildNodeRequestBody(selectedType, form))
       onNodeCreated(node)
       handleClose()
     } catch (submitErr) {
@@ -249,7 +186,7 @@ export function AddNodeModal({ open, onClose, onNodeCreated, initialType }: Prop
               <button
                 className="btn btn--sm"
                 type="button"
-                onClick={() => { setSelectedType(null); setForm(EMPTY_FORM); setError(null) }}
+                onClick={() => { setSelectedType(null); setForm(EMPTY_NODE_FORM); setError(null) }}
               >
                 BACK
               </button>

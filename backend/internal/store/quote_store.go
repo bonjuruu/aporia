@@ -120,32 +120,23 @@ func (s *quoteStore) ListByUser(ctx context.Context, userID string, textID strin
 }
 
 func (s *quoteStore) Update(ctx context.Context, userID string, id string, reaction *string, page *int) error {
-	setClauses := ""
-	params := map[string]any{"id": id, "user_id": userID}
-
+	props := map[string]any{}
 	if reaction != nil {
-		setClauses += "SET q.reaction = $reaction "
-		params["reaction"] = *reaction
+		props["reaction"] = *reaction
 	}
 	if page != nil {
-		if setClauses == "" {
-			setClauses += "SET "
-		} else {
-			setClauses += ", "
-		}
-		setClauses += "q.page = $page "
-		params["page"] = *page
+		props["page"] = *page
 	}
 
-	if setClauses == "" {
+	if len(props) == 0 {
 		return apperror.NewBadRequest("no fields to update")
 	}
 
 	record, singleErr := s.neo4jKit.Single(ctx, `
 		MATCH (u:User {id: $user_id})-[:CAPTURED]->(q:Quote {id: $id})
-		`+setClauses+`
+		SET q += $props
 		RETURN q.id as id
-	`, params)
+	`, map[string]any{"id": id, "user_id": userID, "props": props})
 	if singleErr != nil {
 		return fmt.Errorf("failed to update quote: %w", singleErr)
 	}

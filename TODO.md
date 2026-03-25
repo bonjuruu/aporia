@@ -32,7 +32,31 @@ Tracked from full codebase review (2026-03-25). Items are grouped by area and ro
 - [x] **Neo4j transaction safety** — Accepted: Promote already uses a single Cypher query that creates the node AND updates the quote atomically. The session-per-query pattern is safe here because it's one auto-committed statement. No change needed unless operations are split into separate calls in the future.
 - [x] **Down migrations destroy user data** — Fixed: `000002_seed.down.cypher` now scopes DETACH DELETE to seed node IDs only. `000003_backfill_seed.down.cypher` now scopes property removal to seed node/edge IDs only.
 - [x] **Missing DROP INDEX in schema down** — Fixed: `000001_schema.down.cypher` now drops all 11 edge relationship indexes.
+- [x] **DETACH DELETE orphans quotes** — Accepted: deleting a text node silently breaks FROM_TEXT on linked quotes. Low risk for a personal app — quotes still exist, just lose their source link.
 
 ## Performance
 
 - [x] **GetFullGraph has no LIMIT** — Accepted: A philosophy graph will have hundreds of nodes, not hundreds of thousands. Adding LIMIT/pagination would require significant query restructuring and frontend changes for marginal benefit. Revisit if the graph grows beyond ~5000 nodes.
+
+## Backend — Round 3 Fixes
+
+- [x] **GetByID leaks internal edges** — Fixed: added `NOT type(r) IN ['ANNOTATES', 'CAPTURED', 'FROM_TEXT', 'READING']` to both outgoing and incoming OPTIONAL MATCH in `node_store.go:GetByID`.
+- [x] **Path query hardcodes edge types** — Fixed: added `models.CypherRelTypes()` function derived from `CanonicalEdgeTypes()`, used via `fmt.Sprintf` in `graph_store.go:GetPath`.
+- [x] **Quote Update uses fragile SET concatenation** — Fixed: refactored to use `SET q += $props` pattern consistent with all other stores.
+- [x] **AppError redundant Err field** — Fixed: removed `Err` field and `Unwrap()` method, `Error()` now returns `Message` directly.
+- [x] **Rate limiter goroutine leak** — Accepted: one goroutine per app lifetime, `Stop()` exists but never called. Not worth plumbing shutdown for a single goroutine.
+
+## Frontend — Round 3 Fixes
+
+- [x] **Path edge label lookup wrong key type** — Fixed: mouseout handler now uses `pathEdges.has(e.id)` (edge UUID) instead of composite source-target keys.
+- [x] **Set spread in change detection** — Fixed: replaced `[...currNodeIds].some(...)` with `for...of` loop.
+- [x] **cachedNodeColors never invalidated** — Fixed: removed module-level cache, `getNodeColors()` now reads CSS variables fresh each call.
+- [x] **QuoteCard inline date formatting** — Fixed: now uses shared `formatDate` utility.
+- [x] **AddEdgeModal toNode-only filtering asymmetric** — Fixed: now checks both source and target positions in VALID_PAIRS.
+- [x] **ContextMenu callback ref steals focus** — Fixed: moved focus logic to a `useEffect([focusIndex])` with stable `itemRefs`.
+
+## Previously Deferred — Now Fixed
+
+- [x] **Extract shared node form** — Created `utils/nodeForm.ts` with `NodeFormState`, `EMPTY_NODE_FORM`, `optionalYear`, and `buildNodeRequestBody`. Both `AddNodeModal.tsx` and `PromoteModal.tsx` now import from the shared module.
+- [x] **GraphCanvas mobile viewport** — Added `isMobileRef` updated by both mount effect and resize observer. Data-update effect now syncs hit-area circles on all nodes (adds on mobile, removes on desktop) instead of only on enter.
+- [x] **GraphCanvas aria-label staleness** — `aria-label` now updated on all nodes (merged selection) every data-update, not just on enter.

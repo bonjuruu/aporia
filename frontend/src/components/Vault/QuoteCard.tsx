@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatDate } from '../../utils/formatDate'
 import type { Quote } from '../../types'
 
 interface Props {
@@ -10,9 +11,7 @@ interface Props {
 export function QuoteCard({ quote, onPromote, onDelete }: Props) {
   const [confirming, setConfirming] = useState(false)
 
-  const dateStr = quote.createdAt
-    ? new Date(quote.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : ''
+  const dateStr = quote.createdAt ? formatDate(quote.createdAt, true) : ''
 
   return (
     <div className="quote-card">

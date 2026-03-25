@@ -3,7 +3,9 @@ import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { YearInput } from '../shared/YearInput'
 import { NODE_TYPES } from '../../types'
+import { EMPTY_NODE_FORM, buildNodeRequestBody } from '../../utils/nodeForm'
 import type { NodeType, CreateNodeBody, Quote, GraphNode } from '../../types'
+import type { NodeFormState } from '../../utils/nodeForm'
 
 interface Props {
   open: boolean
@@ -13,74 +15,9 @@ interface Props {
   onNodeCreated?: (node: GraphNode) => void
 }
 
-interface FormState {
-  name: string
-  title: string
-  content: string
-  description: string
-  tradition: string
-  bornYear: string
-  diedYear: string
-  year: string
-  publishedYear: string
-}
-
-const EMPTY_FORM: FormState = {
-  name: '',
-  title: '',
-  content: '',
-  description: '',
-  tradition: '',
-  bornYear: '',
-  diedYear: '',
-  year: '',
-  publishedYear: '',
-}
-
-function optionalYear(value: string): number | undefined {
-  if (value === '') return undefined
-  const n = Number(value)
-  return Number.isNaN(n) ? undefined : n
-}
-
-function buildRequestBody(type: NodeType, form: FormState): CreateNodeBody {
-  switch (type) {
-    case 'THINKER':
-      return {
-        type,
-        name: form.name,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.tradition ? { tradition: form.tradition } : {}),
-        ...(form.bornYear !== '' ? { bornYear: optionalYear(form.bornYear) } : {}),
-        ...(form.diedYear !== '' ? { diedYear: optionalYear(form.diedYear) } : {}),
-      }
-    case 'CONCEPT':
-      return {
-        type,
-        name: form.name,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.year !== '' ? { year: optionalYear(form.year) } : {}),
-      }
-    case 'CLAIM':
-      return {
-        type,
-        content: form.content,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.year !== '' ? { year: optionalYear(form.year) } : {}),
-      }
-    case 'TEXT':
-      return {
-        type,
-        title: form.title,
-        ...(form.description ? { description: form.description } : {}),
-        ...(form.publishedYear !== '' ? { publishedYear: optionalYear(form.publishedYear) } : {}),
-      }
-  }
-}
-
 export function PromoteModal({ open, quote, onClose, onPromote, onNodeCreated }: Props) {
   const [selectedType, setSelectedType] = useState<NodeType>('CLAIM')
-  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [form, setForm] = useState<NodeFormState>(EMPTY_NODE_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const trapRef = useFocusTrap(open)
@@ -89,7 +26,7 @@ export function PromoteModal({ open, quote, onClose, onPromote, onNodeCreated }:
   // Reset form and pre-fill content when quote changes
   useEffect(() => {
     if (!quote) return
-    setForm({ ...EMPTY_FORM, content: quote.content })
+    setForm({ ...EMPTY_NODE_FORM, content: quote.content })
     setSelectedType('CLAIM')
     setError(null)
   }, [quote])
@@ -102,7 +39,7 @@ export function PromoteModal({ open, quote, onClose, onPromote, onNodeCreated }:
 
   useEscapeKey(open, handleClose)
 
-  function setField(field: keyof FormState, value: string) {
+  function setField(field: keyof NodeFormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -112,7 +49,7 @@ export function PromoteModal({ open, quote, onClose, onPromote, onNodeCreated }:
     setError(null)
 
     try {
-      const node = await onPromote(quote.id, buildRequestBody(selectedType, form))
+      const node = await onPromote(quote.id, buildNodeRequestBody(selectedType, form))
       onNodeCreated?.(node)
       handleClose()
     } catch (promoteErr) {

@@ -1,6 +1,9 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type EdgeType string
 
@@ -34,6 +37,25 @@ var validEdgeTypes = map[EdgeType]bool{
 
 func ValidEdgeType(t EdgeType) bool {
 	return validEdgeTypes[t]
+}
+
+// CanonicalEdgeTypes returns all valid edge types as a slice.
+func CanonicalEdgeTypes() []EdgeType {
+	return []EdgeType{
+		EdgeTypeInfluenced, EdgeTypeCoined, EdgeTypeWrote, EdgeTypeArgues,
+		EdgeTypeAppearsIn, EdgeTypeRefutes, EdgeTypeSupports, EdgeTypeQualifies,
+		EdgeTypeBuildsOn, EdgeTypeDerivesFrom, EdgeTypeRespondsTo,
+	}
+}
+
+// CypherRelTypes returns a Cypher relationship type pattern like "INFLUENCED|COINED|WROTE|...".
+func CypherRelTypes() string {
+	types := CanonicalEdgeTypes()
+	parts := make([]string, len(types))
+	for i, t := range types {
+		parts[i] = string(t)
+	}
+	return strings.Join(parts, "|")
 }
 
 type Edge struct {

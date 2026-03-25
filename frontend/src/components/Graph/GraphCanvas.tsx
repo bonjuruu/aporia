@@ -31,15 +31,11 @@ const NODE_COLOR_VARS: Record<string, string> = {
   TEXT:    '--color-node-text',
 }
 
-let cachedNodeColors: Record<string, string> | null = null
-
 function getNodeColors(): Record<string, string> {
-  if (cachedNodeColors) return cachedNodeColors
   const style = getComputedStyle(document.documentElement)
-  cachedNodeColors = Object.fromEntries(
+  return Object.fromEntries(
     Object.entries(NODE_COLOR_VARS).map(([type, varName]) => [type, style.getPropertyValue(varName).trim() || '#888'])
   )
-  return cachedNodeColors
 }
 
 /** Pre-compute a bidirectional adjacency map: nodeId → Set of neighbor nodeIds. */
@@ -84,6 +80,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
   pathNodeIdsRef.current = pathNodeIds ?? null
   const pathEdgeIdsRef = useRef<Set<string> | null>(null)
   pathEdgeIdsRef.current = pathEdgeIds ?? null
+  const isMobileRef = useRef(false)
 
   const filteredData = useMemo<GraphData>(() => {
     const nodes = data.nodes
@@ -138,6 +135,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
     colorsRef.current = getNodeColors()
 
     const isMobile = width < 768
+    isMobileRef.current = isMobile
     // On mobile, account for top bar (~120px) and bottom toolbar (~60px)
     const topInset = isMobile ? 130 : 0
     // Bottom: toolbar(60) + stats(20) + FAB(50) + slider(50) — reserve for worst case
@@ -176,6 +174,7 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       const sim = simulationRef.current
       if (sim) {
         const mobile = width < 768
+        isMobileRef.current = mobile
         const topOff = mobile ? 130 : 0
         const bottomOff = mobile ? 170 : 0
         const p = 30
@@ -267,10 +266,14 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
     // Detect whether the actual set of nodes/edges changed (not just object references)
     const currNodeIds = new Set(filteredData.nodes.map(n => n.id))
     const currEdgeIds = new Set(filteredData.edges.map(e => e.id))
-    const nodeSetChanged = currNodeIds.size !== prevNodeIdsRef.current.size
-      || [...currNodeIds].some(id => !prevNodeIdsRef.current.has(id))
-    const edgeSetChanged = currEdgeIds.size !== prevEdgeIdsRef.current.size
-      || [...currEdgeIds].some(id => !prevEdgeIdsRef.current.has(id))
+    let nodeSetChanged = currNodeIds.size !== prevNodeIdsRef.current.size
+    if (!nodeSetChanged) {
+      for (const id of currNodeIds) { if (!prevNodeIdsRef.current.has(id)) { nodeSetChanged = true; break } }
+    }
+    let edgeSetChanged = currEdgeIds.size !== prevEdgeIdsRef.current.size
+    if (!edgeSetChanged) {
+      for (const id of currEdgeIds) { if (!prevEdgeIdsRef.current.has(id)) { edgeSetChanged = true; break } }
+    }
     const dataSetChanged = nodeSetChanged || edgeSetChanged
     prevNodeIdsRef.current = currNodeIds
     prevEdgeIdsRef.current = currEdgeIds
@@ -329,14 +332,33 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       .style('cursor', 'pointer')
 
     // Invisible hit-area circle for better touch targets on mobile
-    const isMobileViewport = svgRef.current!.getBoundingClientRect().width < 768
-    if (isMobileViewport) {
+    if (isMobileRef.current) {
       nodesEnter.append('circle')
         .attr('class', 'hit-area')
         .attr('r', 22)
         .attr('fill', 'transparent')
         .attr('stroke', 'none')
     }
+
+    // Sync hit-area circles on existing nodes when viewport crosses the mobile breakpoint
+    const allNodes = nodesEnter.merge(nodeSelection)
+    if (isMobileRef.current) {
+      allNodes.each(function () {
+        const g = d3.select(this)
+        if (g.select('circle.hit-area').empty()) {
+          g.insert('circle', ':first-child')
+            .attr('class', 'hit-area')
+            .attr('r', 22)
+            .attr('fill', 'transparent')
+            .attr('stroke', 'none')
+        }
+      })
+    } else {
+      allNodes.selectAll('circle.hit-area').remove()
+    }
+
+    // Update aria-label on all nodes (handles label changes after edit)
+    allNodes.attr('aria-label', (d: GraphNode) => `${d.type} — ${d.label}`)
 
     // Draw shape per node type (only for new nodes)
     nodesEnter.each(function(d) {
@@ -432,19 +454,13 @@ export function GraphCanvas({ data, selectedId, onNodeClick, filterTypes, filter
       const pathEdges = pathEdgeIdsRef.current
       if (pathEdges && pathEdges.size > 0) {
         svg.selectAll<SVGTextElement, GraphEdge>('text.edge-label')
-          .attr('opacity', e => {
-            const srcId = (e.source as GraphNode).id
-            const tgtId = (e.target as GraphNode).id
-            const edgeKey = `${srcId}-${tgtId}`
-            const edgeKeyRev = `${tgtId}-${srcId}`
-            return pathEdges.has(edgeKey) || pathEdges.has(edgeKeyRev) ? 0.7 : 0
-          })
+          .attr('opacity', e => pathEdges.has(e.id) ? 0.7 : 0)
       } else {
         svg.selectAll('text.edge-label').attr('opacity', 0)
       }
     })
 
-    const nodes = nodesEnter.merge(nodeSelection)
+    const nodes = allNodes
 
     // Update simulation
     sim.nodes(filteredData.nodes)

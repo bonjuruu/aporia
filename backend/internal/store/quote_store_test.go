@@ -233,8 +233,8 @@ func TestQuoteStore_Update(t *testing.T) {
 
 		reaction := "disagree"
 		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
-			return strings.Contains(q, "q.reaction = $reaction")
-		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "disagree"}).Return(nil, errors.New("connection refused")).Once()
+			return strings.Contains(q, "SET q += $props")
+		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "props": map[string]any{"reaction": "disagree"}}).Return(nil, errors.New("connection refused")).Once()
 
 		updateErr := quoteStore.Update(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", &reaction, nil)
 
@@ -248,8 +248,8 @@ func TestQuoteStore_Update(t *testing.T) {
 
 		reaction := "disagree"
 		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
-			return strings.Contains(q, "q.reaction = $reaction")
-		}), map[string]any{"id": "nonexistent-id", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "disagree"}).Return(nil, nil).Once()
+			return strings.Contains(q, "SET q += $props")
+		}), map[string]any{"id": "nonexistent-id", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "props": map[string]any{"reaction": "disagree"}}).Return(nil, nil).Once()
 
 		updateErr := quoteStore.Update(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "nonexistent-id", &reaction, nil)
 
@@ -284,8 +284,8 @@ func TestQuoteStore_Update(t *testing.T) {
 		}
 
 		neo4jKit.On("Single", ctx, mock.MatchedBy(func(q string) bool {
-			return strings.Contains(q, "q.reaction = $reaction") && strings.Contains(q, "q.page = $page")
-		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "reaction": "insightful", "page": 42}).Return(record, nil).Once()
+			return strings.Contains(q, "SET q += $props")
+		}), map[string]any{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "user_id": "c3d4e5f6-a7b8-9012-cdef-123456789012", "props": map[string]any{"reaction": "insightful", "page": 42}}).Return(record, nil).Once()
 
 		updateErr := quoteStore.Update(ctx, "c3d4e5f6-a7b8-9012-cdef-123456789012", "a1b2c3d4-e5f6-7890-abcd-ef1234567890", &reaction, &page)
 

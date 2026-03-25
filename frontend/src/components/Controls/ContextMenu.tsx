@@ -17,8 +17,13 @@ interface Props {
 
 export function ContextMenu({ x, y, onSelect, onClose }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [pos, setPos] = useState({ left: x, top: y })
   const [focusIndex, setFocusIndex] = useState(0)
+
+  useEffect(() => {
+    itemRefs.current[focusIndex]?.focus()
+  }, [focusIndex])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -76,7 +81,7 @@ export function ContextMenu({ x, y, onSelect, onClose }: Props) {
             className={`context-menu__item${i === focusIndex ? ' context-menu__item--focused' : ''}`}
             role="menuitem"
             tabIndex={i === focusIndex ? 0 : -1}
-            ref={el => { if (i === focusIndex && el) el.focus() }}
+            ref={el => { itemRefs.current[i] = el }}
             data-type={t.value}
             onClick={() => onSelect(t.value)}
           >
