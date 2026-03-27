@@ -1,3 +1,8 @@
+# fly.toml app configuration file generated for aporia on 2026-03-26T20:45:55+13:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
 app = 'aporia'
 primary_region = 'syd'
 
@@ -5,8 +10,6 @@ primary_region = 'syd'
 
 [env]
   COOKIE_SECURE = 'true'
-  # Set via `fly secrets set`:
-  #   JWT_SECRET, NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD, ALLOW_ORIGIN
 
 [http_service]
   internal_port = 8080
@@ -15,15 +18,15 @@ primary_region = 'syd'
   auto_start_machines = true
   min_machines_running = 1
 
-[[vm]]
-  memory = '256mb'
-  cpu_kind = 'shared'
-  cpus = 1
-
 [checks]
   [checks.health]
-    type = 'http'
     port = 8080
-    path = '/healthz'
+    type = 'http'
     interval = '30s'
     timeout = '5s'
+    path = '/healthz'
+
+[[vm]]
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
